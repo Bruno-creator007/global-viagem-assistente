@@ -4,6 +4,7 @@ import openai
 import os
 from dotenv import load_dotenv
 import logging
+from travel_api import TravelAPI
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -14,6 +15,7 @@ load_dotenv()
 
 app = Flask(__name__, static_folder='../frontend')
 CORS(app, resources={r"/api/*": {"origins": "*"}})
+travel_api = TravelAPI()
 
 # Configure OpenAI
 api_key = os.getenv('OPENAI_API_KEY')
@@ -353,6 +355,45 @@ def get_consulados():
         return jsonify({"success": True, "response": response})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/flights', methods=['POST'])
+def search_flights():
+    data = request.json
+    origin = data.get('origin')
+    destination = data.get('destination')
+    departure_date = data.get('departureDate')
+    return_date = data.get('returnDate')
+    
+    if not all([origin, destination, departure_date]):
+        return jsonify({"error": "Parâmetros incompletos"}), 400
+        
+    results = travel_api.search_flights(origin, destination, departure_date, return_date)
+    return jsonify(results)
+
+@app.route('/api/hotels', methods=['POST'])
+def search_hotels():
+    data = request.json
+    city_code = data.get('cityCode')
+    check_in_date = data.get('checkInDate')
+    check_out_date = data.get('checkOutDate')
+    
+    if not all([city_code, check_in_date, check_out_date]):
+        return jsonify({"error": "Parâmetros incompletos"}), 400
+        
+    results = travel_api.search_hotels(city_code, check_in_date, check_out_date)
+    return jsonify(results)
+
+@app.route('/api/activities', methods=['POST'])
+def search_activities():
+    data = request.json
+    latitude = data.get('latitude')
+    longitude = data.get('longitude')
+    
+    if not all([latitude, longitude]):
+        return jsonify({"error": "Parâmetros incompletos"}), 400
+        
+    results = travel_api.search_activities(latitude, longitude)
+    return jsonify(results)
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
