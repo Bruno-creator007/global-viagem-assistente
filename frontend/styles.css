@@ -302,8 +302,8 @@ header p {
 }
 
 .logo {
-    width: 120px;
-    height: 120px;
+    width: 150px;
+    height: 150px;
     transition: transform 0.3s ease;
 }
 
