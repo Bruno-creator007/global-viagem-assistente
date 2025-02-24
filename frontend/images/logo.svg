@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="60" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fundo do globo -->
+  <circle cx="30" cy="30" r="25" fill="#3498db" opacity="0.2"/>
+  
+  <!-- Linhas do globo -->
+  <path d="M5,30 Q30,-10 55,30" fill="none" stroke="#3498db" stroke-width="2"/>
+  <path d="M5,30 Q30,70 55,30" fill="none" stroke="#3498db" stroke-width="2"/>
+  <path d="M30,5 L30,55" stroke="#3498db" stroke-width="2"/>
+  
+  <!-- Avião -->
+  <path d="M25,30 l-8,-3 l-2,-2 l15,-5 l5,5 l-5,5 l-15,-5 l2,-2 l8,-3" fill="#3498db" transform="rotate(45, 30, 30)"/>
+  
+  <!-- Texto -->
+  <text x="70" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#2c3e50">Global</text>
+  <text x="70" y="50" font-family="Arial, sans-serif" font-size="16" fill="#7f8c8d">Viagem Assistente</text>
+</svg>
