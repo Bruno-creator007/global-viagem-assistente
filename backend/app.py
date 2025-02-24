@@ -1,19 +1,40 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from dotenv import load_dotenv
-import os
 from openai import OpenAI
+import os
+from dotenv import load_dotenv
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Configure OpenAI
 client = OpenAI(
     api_key=os.getenv('OPENAI_API_KEY')
 )
+
+@app.route('/')
+def home():
+    return jsonify({"status": "ok", "message": "Welcome to Global Viagem Assistente API"})
+
+@app.route('/api/health')
+def health_check():
+    logger.info("Health check endpoint called")
+    return jsonify({
+        "status": "ok",
+        "message": "Server is running",
+        "environment": {
+            "OPENAI_API_KEY": "configured" if os.getenv('OPENAI_API_KEY') else "missing",
+            "PORT": os.getenv('PORT', '5000')
+        }
+    })
 
 def chatgpt_interaction(prompt, system_message=None):
     try:
@@ -328,10 +349,6 @@ def get_consulados():
         return jsonify({"success": True, "response": response})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/health')
-def health_check():
-    return jsonify({"status": "ok", "message": "Server is running"})
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
