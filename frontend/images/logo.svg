@@ -1,17 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="200" height="60" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
-  <!-- Fundo do globo -->
-  <circle cx="30" cy="30" r="25" fill="#3498db" opacity="0.2"/>
+<svg width="300" height="300" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Círculo de fundo -->
+  <circle cx="150" cy="150" r="150" fill="#3B4BA7"/>
   
-  <!-- Linhas do globo -->
-  <path d="M5,30 Q30,-10 55,30" fill="none" stroke="#3498db" stroke-width="2"/>
-  <path d="M5,30 Q30,70 55,30" fill="none" stroke="#3498db" stroke-width="2"/>
-  <path d="M30,5 L30,55" stroke="#3498db" stroke-width="2"/>
+  <!-- Órbitas -->
+  <circle cx="150" cy="150" r="80" fill="none" stroke="white" stroke-width="2" opacity="0.6"/>
+  <circle cx="150" cy="150" r="60" fill="none" stroke="white" stroke-width="2" opacity="0.6"/>
+  <circle cx="150" cy="150" r="40" fill="none" stroke="white" stroke-width="2" opacity="0.6"/>
   
-  <!-- Avião -->
-  <path d="M25,30 l-8,-3 l-2,-2 l15,-5 l5,5 l-5,5 l-15,-5 l2,-2 l8,-3" fill="#3498db" transform="rotate(45, 30, 30)"/>
+  <!-- Pontos nas órbitas -->
+  <circle cx="150" cy="70" r="4" fill="white"/>
+  <circle cx="150" cy="230" r="4" fill="white"/>
+  <circle cx="70" cy="150" r="4" fill="white"/>
+  <circle cx="230" cy="150" r="4" fill="white"/>
   
-  <!-- Texto -->
-  <text x="70" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#2c3e50">Global</text>
-  <text x="70" y="50" font-family="Arial, sans-serif" font-size="16" fill="#7f8c8d">Viagem Assistente</text>
+  <!-- Estrelas -->
+  <path d="M50,120 l5,5 l-5,5 l-5,-5 z" fill="white" opacity="0.8"/>
+  <path d="M250,120 l5,5 l-5,5 l-5,-5 z" fill="white" opacity="0.8"/>
+  
+  <!-- Globo central -->
+  <circle cx="150" cy="150" r="25" fill="#7FD1E4"/>
+  
+  <!-- Texto circular superior -->
+  <path id="textCircle" d="M150,80 A70,70 0 1,1 149.99,80" fill="none"/>
+  <text>
+    <textPath href="#textCircle" startOffset="50%" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="24">
+      GLOBAL VIAGEM
+    </textPath>
+  </text>
+  
+  <!-- Texto circular inferior -->
+  <path id="textCircle2" d="M150,220 A70,70 0 1,0 149.99,220" fill="none"/>
+  <text>
+    <textPath href="#textCircle2" startOffset="50%" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16">
+      SUA LIBERDADE ESTÁ AQUI
+    </textPath>
+  </text>
 </svg>
