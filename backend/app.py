@@ -16,9 +16,12 @@ app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Configure OpenAI
-client = OpenAI(
-    api_key=os.getenv('OPENAI_API_KEY')
-)
+api_key = os.getenv('OPENAI_API_KEY')
+if not api_key:
+    logger.error("OpenAI API key not found!")
+    raise ValueError("OpenAI API key not found in environment variables")
+
+client = OpenAI(api_key=api_key)
 
 @app.route('/')
 def home():
