@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Viagem Assistente</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>Global Viagem Assistente</h1>
+            <p>Seu assistente de viagens inteligente 🌎✈️</p>
+        </header>
+
+        <nav class="features-nav">
+            <div class="features-grid">
+                <button class="feature-btn" data-feature="roteiro">
+                    <i class="fas fa-map-marked-alt"></i>
+                    <span>Roteiro e Passeio</span>
+                </button>
+                <button class="feature-btn" data-feature="trem">
+                    <i class="fas fa-train"></i>
+                    <span>Europa de Trem</span>
+                </button>
+                <button class="feature-btn" data-feature="precos">
+                    <i class="fas fa-tags"></i>
+                    <span>Preço de Viagem</span>
+                </button>
+                <button class="feature-btn" data-feature="checklist">
+                    <i class="fas fa-tasks"></i>
+                    <span>Checklist</span>
+                </button>
+                <button class="feature-btn" data-feature="gastronomia">
+                    <i class="fas fa-utensils"></i>
+                    <span>Gastronomia</span>
+                </button>
+                <button class="feature-btn" data-feature="documentacao">
+                    <i class="fas fa-passport"></i>
+                    <span>Documentação</span>
+                </button>
+                <button class="feature-btn" data-feature="guia">
+                    <i class="fas fa-map"></i>
+                    <span>Guia Local</span>
+                </button>
+                <button class="feature-btn" data-feature="festivais">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Festivais e Eventos</span>
+                </button>
+                <button class="feature-btn" data-feature="hospedagem">
+                    <i class="fas fa-bed"></i>
+                    <span>Hospedagem</span>
+                </button>
+                <button class="feature-btn" data-feature="historias">
+                    <i class="fas fa-book-open"></i>
+                    <span>História e Curiosidades</span>
+                </button>
+                <button class="feature-btn" data-feature="frases">
+                    <i class="fas fa-language"></i>
+                    <span>Frases Úteis</span>
+                </button>
+                <button class="feature-btn" data-feature="seguranca">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Dicas de Segurança</span>
+                </button>
+                <button class="feature-btn" data-feature="hospitais">
+                    <i class="fas fa-hospital"></i>
+                    <span>Hospitais Próximos</span>
+                </button>
+                <button class="feature-btn" data-feature="consulados">
+                    <i class="fas fa-building"></i>
+                    <span>Consulados</span>
+                </button>
+                <a href="https://wa.link/wji82c" class="feature-btn reserva" target="_blank">
+                    <i class="fas fa-suitcase-rolling"></i>
+                    <span>Reservar com a Global</span>
+                </a>
+            </div>
+        </nav>
+
+        <main>
+            <div class="chat-container">
+                <div id="chatHistory"></div>
+                <div class="input-container">
+                    <input type="text" id="userInput" placeholder="Digite sua pergunta sobre viagens...">
+                    <button id="sendButton">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
