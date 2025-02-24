@@ -1,0 +1,131 @@
+<div class="smart-deals-container">
+    <div class="deals-header">
+        <h2>Smart Travel Deals</h2>
+        <p>Encontre as melhores ofertas para sua viagem</p>
+    </div>
+
+    <div class="search-section">
+        <div class="search-form">
+            <div class="form-group">
+                <label for="destination">Destino</label>
+                <input type="text" id="destination" placeholder="Para onde você vai?">
+            </div>
+            <div class="form-group dates">
+                <div>
+                    <label for="start-date">Ida</label>
+                    <input type="date" id="start-date">
+                </div>
+                <div>
+                    <label for="end-date">Volta</label>
+                    <input type="date" id="end-date">
+                </div>
+            </div>
+            <button class="search-button">Buscar Ofertas</button>
+        </div>
+    </div>
+
+    <div class="deals-grid">
+        <div class="deal-card flights">
+            <h3>Passagens Aéreas</h3>
+            <div class="price-monitor">
+                <div class="current-price">
+                    <span class="label">Menor preço atual:</span>
+                    <span class="value">R$ 0</span>
+                </div>
+                <div class="price-history">
+                    <canvas id="flights-chart"></canvas>
+                </div>
+                <div class="prediction">
+                    <span class="label">Melhor momento para comprar:</span>
+                    <span class="value">Carregando...</span>
+                </div>
+            </div>
+            <button class="alert-button">Criar Alerta de Preço</button>
+        </div>
+
+        <div class="deal-card accommodation">
+            <h3>Hospedagem</h3>
+            <div class="price-monitor">
+                <div class="current-price">
+                    <span class="label">Média diária mais baixa:</span>
+                    <span class="value">R$ 0</span>
+                </div>
+                <div class="price-history">
+                    <canvas id="accommodation-chart"></canvas>
+                </div>
+                <div class="options">
+                    <button class="option-button" data-type="hotel">Hotéis</button>
+                    <button class="option-button" data-type="hostel">Hostels</button>
+                    <button class="option-button" data-type="airbnb">Airbnb</button>
+                </div>
+            </div>
+            <button class="alert-button">Criar Alerta de Preço</button>
+        </div>
+
+        <div class="deal-card activities">
+            <h3>Passeios e Atividades</h3>
+            <div class="activities-grid">
+                <div class="activity-card loading">
+                    <div class="activity-image"></div>
+                    <div class="activity-info">
+                        <h4>Carregando...</h4>
+                        <p class="price">R$ 0</p>
+                    </div>
+                </div>
+            </div>
+            <button class="view-all-button">Ver Todas as Atividades</button>
+        </div>
+    </div>
+
+    <div class="budget-planner">
+        <h3>Planejador de Orçamento</h3>
+        <div class="budget-calculator">
+            <div class="budget-breakdown">
+                <div class="breakdown-item">
+                    <span class="item-label">Passagens</span>
+                    <span class="item-value">R$ 0</span>
+                </div>
+                <div class="breakdown-item">
+                    <span class="item-label">Hospedagem</span>
+                    <span class="item-value">R$ 0</span>
+                </div>
+                <div class="breakdown-item">
+                    <span class="item-label">Atividades</span>
+                    <span class="item-value">R$ 0</span>
+                </div>
+                <div class="breakdown-item">
+                    <span class="item-label">Alimentação</span>
+                    <span class="item-value">R$ 0</span>
+                </div>
+                <div class="breakdown-item total">
+                    <span class="item-label">Total Estimado</span>
+                    <span class="item-value">R$ 0</span>
+                </div>
+            </div>
+            <div class="saving-tips">
+                <h4>Dicas para Economizar</h4>
+                <ul class="tips-list">
+                    <li>Carregando dicas...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert-modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Criar Alerta de Preço</h3>
+            <div class="form-group">
+                <label for="alert-email">Seu E-mail</label>
+                <input type="email" id="alert-email" placeholder="Digite seu e-mail">
+            </div>
+            <div class="form-group">
+                <label for="price-threshold">Preço Desejado</label>
+                <input type="number" id="price-threshold" placeholder="R$ 0,00">
+            </div>
+            <div class="modal-buttons">
+                <button class="cancel-button">Cancelar</button>
+                <button class="save-button">Salvar Alerta</button>
+            </div>
+        </div>
+    </div>
+</div>
