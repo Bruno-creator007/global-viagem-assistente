@@ -329,6 +329,10 @@ def get_consulados():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/api/health')
+def health_check():
+    return jsonify({"status": "ok", "message": "Server is running"})
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
