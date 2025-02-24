@@ -4,7 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatHistory = document.getElementById('chatHistory');
     const featureButtons = document.querySelectorAll('.feature-btn');
 
-    const API_URL = 'http://localhost:5000/api';
+    // API URL configuration
+    const API_URL = window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000'
+        : window.location.origin;
 
     function addMessage(content, isUser = false) {
         const messageDiv = document.createElement('div');
@@ -30,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function sendMessage(message, endpoint = 'chat') {
         try {
-            const response = await fetch(`${API_URL}/${endpoint}`, {
+            const response = await fetch(`${API_URL}/api/${endpoint}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -121,105 +124,105 @@ document.addEventListener('DOMContentLoaded', () => {
             switch (feature) {
                 case 'roteiro':
                     const [destino, dias] = message.split(' por ');
-                    response = await fetch(`${API_URL}/roteiro`, {
+                    response = await fetch(`${API_URL}/api/roteiro`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ destino, dias: dias || '5' })
                     });
                     break;
                 case 'trem':
-                    response = await fetch(`${API_URL}/trem`, {
+                    response = await fetch(`${API_URL}/api/trem`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ destinos: message })
                     });
                     break;
                 case 'precos':
-                    response = await fetch(`${API_URL}/precos`, {
+                    response = await fetch(`${API_URL}/api/precos`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ destino: message })
                     });
                     break;
                 case 'checklist':
-                    response = await fetch(`${API_URL}/checklist`, {
+                    response = await fetch(`${API_URL}/api/checklist`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ destino: message })
                     });
                     break;
                 case 'gastronomia':
-                    response = await fetch(`${API_URL}/gastronomia`, {
+                    response = await fetch(`${API_URL}/api/gastronomia`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ destino: message })
                     });
                     break;
                 case 'documentacao':
-                    response = await fetch(`${API_URL}/documentacao`, {
+                    response = await fetch(`${API_URL}/api/documentacao`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ destino: message, origem: 'Brasil' })
                     });
                     break;
                 case 'guia':
-                    response = await fetch(`${API_URL}/guia`, {
+                    response = await fetch(`${API_URL}/api/guia`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ local: message })
                     });
                     break;
                 case 'festivais':
-                    response = await fetch(`${API_URL}/festivais`, {
+                    response = await fetch(`${API_URL}/api/festivais`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ cidade: message })
                     });
                     break;
                 case 'hospedagem':
-                    response = await fetch(`${API_URL}/hospedagem`, {
+                    response = await fetch(`${API_URL}/api/hospedagem`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ cidade: message })
                     });
                     break;
                 case 'historias':
-                    response = await fetch(`${API_URL}/historias`, {
+                    response = await fetch(`${API_URL}/api/historias`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ cidade: message })
                     });
                     break;
                 case 'frases':
-                    response = await fetch(`${API_URL}/frases`, {
+                    response = await fetch(`${API_URL}/api/frases`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ idioma: message })
                     });
                     break;
                 case 'seguranca':
-                    response = await fetch(`${API_URL}/seguranca`, {
+                    response = await fetch(`${API_URL}/api/seguranca`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ cidade: message })
                     });
                     break;
                 case 'hospitais':
-                    response = await fetch(`${API_URL}/hospitais`, {
+                    response = await fetch(`${API_URL}/api/hospitais`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ cidade: message })
                     });
                     break;
                 case 'consulados':
-                    response = await fetch(`${API_URL}/consulados`, {
+                    response = await fetch(`${API_URL}/api/consulados`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ cidade: message })
                     });
                     break;
                 default:
-                    response = await fetch(`${API_URL}/chat`, {
+                    response = await fetch(`${API_URL}/api/chat`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message })
