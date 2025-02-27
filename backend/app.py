@@ -1,31 +1,99 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
 import openai
 import os
-from dotenv import load_dotenv
 import logging
-from travel_api import TravelAPI
+from backend.travel_api import TravelAPI
+from admin import admin_bp, login_manager
+from models import db, AssistantFunction, Usage
+from datetime import datetime
+from config import OPENAI_API_KEY, SECRET_KEY, SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
-
-app = Flask(__name__, static_folder='../frontend')
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-travel_api = TravelAPI()
-
 # Configure OpenAI
-api_key = os.getenv('OPENAI_API_KEY')
-if not api_key:
+openai.api_key = OPENAI_API_KEY
+if not openai.api_key:
     logger.error("OpenAI API key not found!")
     raise ValueError("OpenAI API key not found in environment variables")
 
-openai.api_key = api_key
+app = Flask(__name__, 
+    static_folder='../frontend/static',
+    template_folder='../frontend/templates'
+)
 
-def chatgpt_interaction(prompt, system_message=None):
+# Configuração do banco de dados
+app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = SQLALCHEMY_TRACK_MODIFICATIONS
+app.config['SECRET_KEY'] = SECRET_KEY
+
+# Inicializa as extensões
+db.init_app(app)
+login_manager.init_app(app)
+
+# Registra o blueprint do admin
+app.register_blueprint(admin_bp)
+
+# Cria as tabelas do banco de dados
+with app.app_context():
+    db.create_all()
+
+CORS(app, resources={r"/api/*": {"origins": "*"}})
+travel_api = TravelAPI()
+
+def get_available_functions():
+    """Retorna todas as funções ativas do assistente"""
+    return AssistantFunction.query.filter_by(is_active=True).all()
+
+def execute_function(function_name, user_message):
+    """Executa uma função específica do assistente"""
+    try:
+        function = AssistantFunction.query.filter_by(name=function_name, is_active=True).first()
+        if not function:
+            return None
+            
+        # Registra o uso da função
+        usage = Usage(
+            function_name=function_name,
+            user_id="anonymous",  # Você pode modificar isso para usar IDs reais de usuários
+            timestamp=datetime.utcnow(),
+            success=True
+        )
+        
+        start_time = datetime.utcnow()
+        
+        # Se a função tem um endpoint personalizado, use-o
+        if function.endpoint and function.api_key:
+            # Aqui você implementaria a chamada para o endpoint personalizado
+            response = "Função com endpoint personalizado ainda não implementada"
+        else:
+            # Caso contrário, use o ChatGPT com os parâmetros da função
+            response = chatgpt_interaction(
+                user_message,
+                system_message=function.description,
+                parameters=function.parameters
+            )
+        
+        # Atualiza o tempo de resposta
+        usage.response_time = (datetime.utcnow() - start_time).total_seconds()
+        db.session.add(usage)
+        db.session.commit()
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error executing function {function_name}: {str(e)}")
+        if 'usage' in locals():
+            usage.success = False
+            usage.response_time = (datetime.utcnow() - start_time).total_seconds()
+            db.session.add(usage)
+            db.session.commit()
+        return None
+
+def chatgpt_interaction(prompt, system_message=None, parameters=None):
     try:
         if system_message is None:
             system_message = "Você é um assistente de viagem profissional, especializado em dar informações precisas e úteis sobre destinos, roteiros, documentação e dicas de viagem. Seja sempre claro e organizado em suas respostas."
@@ -35,11 +103,23 @@ def chatgpt_interaction(prompt, system_message=None):
             {"role": "user", "content": prompt}
         ]
         
+        # Se houver parâmetros específicos para a função, use-os
+        if parameters:
+            completion_params = {
+                "model": parameters.get("model", "gpt-3.5-turbo"),
+                "temperature": parameters.get("temperature", 0.7),
+                "max_tokens": parameters.get("max_tokens", 1000)
+            }
+        else:
+            completion_params = {
+                "model": "gpt-3.5-turbo",
+                "temperature": 0.7,
+                "max_tokens": 1000
+            }
+        
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
             messages=messages,
-            temperature=0.7,
-            max_tokens=1000
+            **completion_params
         )
         
         return response.choices[0].message['content'].strip()
@@ -48,7 +128,7 @@ def chatgpt_interaction(prompt, system_message=None):
         raise
 
 @app.route('/')
-def home():
+def serve_index():
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/<path:path>')
@@ -62,7 +142,7 @@ def health_check():
         "status": "ok",
         "message": "Server is running",
         "environment": {
-            "OPENAI_API_KEY": "configured" if os.getenv('OPENAI_API_KEY') else "missing",
+            "OPENAI_API_KEY": "configured" if openai.api_key else "missing",
             "PORT": os.getenv('PORT', '5000')
         }
     })
@@ -71,11 +151,30 @@ def health_check():
 def chat():
     try:
         data = request.json
-        user_message = data.get('message')
-        response = chatgpt_interaction(user_message)
+        user_message = data.get('message', '')
+        function_name = data.get('function', 'chat')  # Se nenhuma função específica for solicitada, use o chat padrão
+        
+        # Tenta executar uma função específica
+        response = execute_function(function_name, user_message)
+        
+        # Se não houver resposta da função específica, use o chat padrão
+        if response is None:
+            response = chatgpt_interaction(user_message)
+        
         return jsonify({"success": True, "response": response})
+        
     except Exception as e:
+        logger.error(f"Error in chat endpoint: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/functions', methods=['GET'])
+def list_functions():
+    """Retorna a lista de funções disponíveis para o frontend"""
+    functions = get_available_functions()
+    return jsonify({
+        "success": True,
+        "functions": [{"name": f.name, "description": f.description} for f in functions]
+    })
 
 @app.route('/api/roteiro', methods=['POST'])
 def get_roteiro():
@@ -361,8 +460,8 @@ def search_flights():
     data = request.json
     origin = data.get('origin')
     destination = data.get('destination')
-    departure_date = data.get('departureDate')
-    return_date = data.get('returnDate')
+    departure_date = data.get('departure_date')
+    return_date = data.get('return_date')
     
     if not all([origin, destination, departure_date]):
         return jsonify({"error": "Parâmetros incompletos"}), 400
@@ -373,9 +472,9 @@ def search_flights():
 @app.route('/api/hotels', methods=['POST'])
 def search_hotels():
     data = request.json
-    city_code = data.get('cityCode')
-    check_in_date = data.get('checkInDate')
-    check_out_date = data.get('checkOutDate')
+    city_code = data.get('city_code')
+    check_in_date = data.get('check_in_date')
+    check_out_date = data.get('check_out_date')
     
     if not all([city_code, check_in_date, check_out_date]):
         return jsonify({"error": "Parâmetros incompletos"}), 400
@@ -396,5 +495,4 @@ def search_activities():
     return jsonify(results)
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True)
