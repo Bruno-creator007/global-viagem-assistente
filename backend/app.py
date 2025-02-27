@@ -5,10 +5,10 @@ import openai
 import os
 import logging
 from backend.travel_api import TravelAPI
-from admin import admin_bp, login_manager
-from models import db, AssistantFunction, Usage
+from backend.admin import admin_bp, login_manager
+from backend.models import db, AssistantFunction, Usage
+from backend.config import OPENAI_API_KEY, SECRET_KEY, SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
 from datetime import datetime
-from config import OPENAI_API_KEY, SECRET_KEY, SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
