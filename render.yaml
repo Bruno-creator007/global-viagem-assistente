@@ -17,3 +17,5 @@ services:
         generateValue: true
       - key: DATABASE_URL
         value: sqlite:///instance/app.db
+      - key: PYTHONPATH
+        value: /opt/render/project/src
