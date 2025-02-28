@@ -1,0 +1,303 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Gerenciar Funções{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Gerenciar Funções</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFunctionModal">
+            <i class="fas fa-plus me-2"></i>Nova Função
+        </button>
+    </div>
+
+    <!-- Lista de Funções -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Descrição</th>
+                            <th>Status</th>
+                            <th>API Key</th>
+                            <th>Endpoint</th>
+                            <th>Última Atualização</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for function in functions %}
+                        <tr>
+                            <td>{{ function.name }}</td>
+                            <td>{{ function.description|truncate(50) }}</td>
+                            <td>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" 
+                                           id="status_{{ function.id }}"
+                                           {% if function.is_active %}checked{% endif %}
+                                           onchange="toggleStatus({{ function.id }}, this.checked)">
+                                </div>
+                            </td>
+                            <td>
+                                {% if function.api_key %}
+                                <span class="text-muted">•••••••••••</span>
+                                {% else %}
+                                <span class="text-muted">Não definida</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ function.endpoint|default('N/A', true) }}</td>
+                            <td>{{ function.updated_at|default(function.created_at)|datetime }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="editFunction({{ function.id }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteFunction({{ function.id }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Adicionar Função -->
+<div class="modal fade" id="addFunctionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Função</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addFunctionForm" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nome da Função</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Descrição</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="parameters" class="form-label">Parâmetros (JSON)</label>
+                        <textarea class="form-control" id="parameters" name="parameters" rows="5"></textarea>
+                        <div class="form-text">Digite os parâmetros no formato JSON</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="api_key" class="form-label">API Key</label>
+                        <input type="password" class="form-control" id="api_key" name="api_key">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="endpoint" class="form-label">Endpoint</label>
+                        <input type="text" class="form-control" id="endpoint" name="endpoint">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Função -->
+<div class="modal fade" id="editFunctionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Função</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editFunctionForm">
+                <input type="hidden" id="edit_function_id" name="function_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label">Nome da Função</label>
+                        <input type="text" class="form-control" id="edit_name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_description" class="form-label">Descrição</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_parameters" class="form-label">Parâmetros (JSON)</label>
+                        <textarea class="form-control" id="edit_parameters" name="parameters" rows="5"></textarea>
+                        <div class="form-text">Digite os parâmetros no formato JSON</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_api_key" class="form-label">API Key</label>
+                        <input type="password" class="form-control" id="edit_api_key" name="api_key">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_endpoint" class="form-label">Endpoint</label>
+                        <input type="text" class="form-control" id="edit_endpoint" name="endpoint">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Atualizar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleStatus(id, status) {
+    fetch(`/admin/functions/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            is_active: status
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            alert('Erro ao atualizar status da função');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao atualizar status da função');
+    });
+}
+
+function editFunction(id) {
+    fetch(`/admin/functions/${id}`)
+        .then(response => response.json())
+        .then(function(data) {
+            document.getElementById('edit_function_id').value = id;
+            document.getElementById('edit_name').value = data.name;
+            document.getElementById('edit_description').value = data.description;
+            document.getElementById('edit_parameters').value = JSON.stringify(data.parameters, null, 2);
+            document.getElementById('edit_endpoint').value = data.endpoint || '';
+            
+            var editModal = new bootstrap.Modal(document.getElementById('editFunctionModal'));
+            editModal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erro ao carregar dados da função');
+        });
+}
+
+function deleteFunction(id) {
+    if (confirm('Tem certeza que deseja excluir esta função?')) {
+        fetch(`/admin/functions/${id}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erro ao excluir função');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erro ao excluir função');
+        });
+    }
+}
+
+// Validação do JSON nos formulários
+document.querySelectorAll('#parameters, #edit_parameters').forEach(textarea => {
+    textarea.addEventListener('blur', function() {
+        try {
+            if (this.value) {
+                JSON.parse(this.value);
+                this.classList.remove('is-invalid');
+            }
+        } catch (e) {
+            this.classList.add('is-invalid');
+            alert('JSON inválido no campo de parâmetros');
+        }
+    });
+});
+
+// Manipulação do formulário de adição
+document.getElementById('addFunctionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    fetch('/admin/functions/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            name: document.getElementById('name').value,
+            description: document.getElementById('description').value,
+            parameters: JSON.parse(document.getElementById('parameters').value || '{}'),
+            api_key: document.getElementById('api_key').value,
+            endpoint: document.getElementById('endpoint').value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro ao criar função');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao criar função');
+    });
+});
+
+// Manipulação do formulário de edição
+document.getElementById('editFunctionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const id = document.getElementById('edit_function_id').value;
+    
+    fetch(`/admin/functions/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            name: document.getElementById('edit_name').value,
+            description: document.getElementById('edit_description').value,
+            parameters: JSON.parse(document.getElementById('edit_parameters').value || '{}'),
+            api_key: document.getElementById('edit_api_key').value,
+            endpoint: document.getElementById('edit_endpoint').value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erro ao atualizar função');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro ao atualizar função');
+    });
+});
+</script>
+{% endblock %}

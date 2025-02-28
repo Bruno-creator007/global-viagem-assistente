@@ -1,0 +1,182 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cards de Resumo -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Funções Ativas</h6>
+                            <h2 class="mb-0">{{ functions|selectattr('is_active', 'true')|list|length }}</h2>
+                        </div>
+                        <i class="fas fa-cogs fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Taxa de Sucesso</h6>
+                            <h2 class="mb-0">{{ "%.1f"|format(success_rate * 100) }}%</h2>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Tempo Médio</h6>
+                            <h2 class="mb-0">{{ "%.2f"|format(avg_response_time) }}s</h2>
+                        </div>
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-white mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Total de Usos</h6>
+                            <h2 class="mb-0">{{ total_usage }}</h2>
+                        </div>
+                        <i class="fas fa-chart-bar fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Funções -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-list me-1"></i>
+                    Funções do Assistente
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Status</th>
+                                    <th>Última Atualização</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for function in functions %}
+                                <tr>
+                                    <td>{{ function.name }}</td>
+                                    <td>
+                                        {% if function.is_active %}
+                                        <span class="badge bg-success">Ativo</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Inativo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ function.updated_at|default(function.created_at)|datetime }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" onclick="editFunction({{ function.id }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteFunction({{ function.id }})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Uso Recente -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-history me-1"></i>
+                    Atividade Recente
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Função</th>
+                                    <th>Status</th>
+                                    <th>Tempo</th>
+                                    <th>Data</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for usage in usage_stats %}
+                                <tr>
+                                    <td>{{ usage.function.name }}</td>
+                                    <td>
+                                        {% if usage.success %}
+                                        <span class="badge bg-success">Sucesso</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Erro</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "%.2f"|format(usage.response_time) }}s</td>
+                                    <td>{{ usage.timestamp|datetime }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function editFunction(id) {
+    window.location.href = "{{ url_for('admin.manage_functions') }}/" + id;
+}
+
+function deleteFunction(id) {
+    if (confirm('Tem certeza que deseja excluir esta função?')) {
+        fetch("{{ url_for('admin.manage_functions') }}/" + id, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erro ao excluir função: ' + data.message);
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

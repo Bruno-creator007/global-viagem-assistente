@@ -1,0 +1,112 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Estatísticas de Uso{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">Estatísticas de Uso</h1>
+            
+            <!-- Cards de Resumo -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0">Total de Requisições</h6>
+                                    <h2 class="mb-0">{{ total_requests }}</h2>
+                                </div>
+                                <i class="fas fa-chart-line fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0">Taxa de Sucesso</h6>
+                                    <h2 class="mb-0">{{ "%.1f"|format(success_rate * 100) }}%</h2>
+                                </div>
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0">Tempo Médio</h6>
+                                    <h2 class="mb-0">{{ "%.2f"|format(avg_response_time) }}s</h2>
+                                </div>
+                                <i class="fas fa-clock fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0">Usuários Únicos</h6>
+                                    <h2 class="mb-0">{{ unique_users }}</h2>
+                                </div>
+                                <i class="fas fa-users fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tabela de Histórico -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-history me-1"></i>
+                    Histórico de Uso
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Função</th>
+                                    <th>Status</th>
+                                    <th>Tempo de Resposta</th>
+                                    <th>Usuário</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for usage in usage_history %}
+                                <tr>
+                                    <td>{{ usage.timestamp|datetime }}</td>
+                                    <td>{{ usage.function_name }}</td>
+                                    <td>
+                                        {% if usage.success %}
+                                        <span class="badge bg-success">Sucesso</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Erro</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "%.2f"|format(usage.response_time) }}s</td>
+                                    <td>{{ usage.user_id }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -3,11 +3,11 @@ services:
     name: global-viagem-assistente
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn backend.app:app --timeout 120 --workers 1 --threads 8
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
       - key: SECRET_KEY
         generateValue: true
-      - key: DATABASE_URL
-        value: sqlite:///instance/app.db
+      - key: OPENAI_API_KEY
+        sync: false

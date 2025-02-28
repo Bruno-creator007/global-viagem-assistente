@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Viagem - Busca</title>
+    
+    <!-- Fontes e ícones -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap e CSS personalizado -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="styles/test.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Cabeçalho -->
+    <header class="header">
+        <div class="container">
+            <div class="logo-container">
+                <img src="images/logo.svg" alt="Global Viagem Logo" class="logo">
+            </div>
+            <h1>Encontre as Melhores Ofertas</h1>
+        </div>
+    </header>
+
+    <!-- Container principal -->
+    <div class="container">
+        <!-- Abas de busca -->
+        <div class="search-container">
+            <div class="search-tabs">
+                <button class="search-tab active" data-tab="flights">
+                    <i class="fas fa-plane"></i> Voos
+                </button>
+                <button class="search-tab" data-tab="hotels">
+                    <i class="fas fa-hotel"></i> Hotéis
+                </button>
+                <button class="search-tab" data-tab="activities">
+                    <i class="fas fa-map-marked-alt"></i> Atividades
+                </button>
+            </div>
+
+            <!-- Formulário de busca de voos -->
+            <div class="search-form" id="flightSearch">
+                <form id="flightForm" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-plane-departure"></i> Origem (IATA)
+                        </label>
+                        <input type="text" class="form-control" name="origin" value="JFK" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-plane-arrival"></i> Destino (IATA)
+                        </label>
+                        <input type="text" class="form-control" name="destination" value="CDG" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-calendar"></i> Data Ida
+                        </label>
+                        <input type="date" class="form-control" name="departure_date" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-calendar-alt"></i> Data Volta
+                        </label>
+                        <input type="date" class="form-control" name="return_date">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn-search">
+                            <i class="fas fa-search"></i> Buscar Voos
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Formulário de busca de hotéis -->
+            <div class="search-form" id="hotelSearch" style="display: none;">
+                <form id="hotelForm" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-map-marker-alt"></i> Cidade (código)
+                        </label>
+                        <input type="text" class="form-control" name="city_code" value="PAR" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-calendar-check"></i> Check-in
+                        </label>
+                        <input type="date" class="form-control" name="check_in_date" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-calendar-times"></i> Check-out
+                        </label>
+                        <input type="date" class="form-control" name="check_out_date" required>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn-search">
+                            <i class="fas fa-search"></i> Buscar Hotéis
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Formulário de busca de atividades -->
+            <div class="search-form" id="activitySearch" style="display: none;">
+                <form id="activityForm" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            <i class="fas fa-map-pin"></i> Latitude
+                        </label>
+                        <input type="number" step="any" class="form-control" name="latitude" value="48.8566" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            <i class="fas fa-map-pin"></i> Longitude
+                        </label>
+                        <input type="number" step="any" class="form-control" name="longitude" value="2.3522" required>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn-search">
+                            <i class="fas fa-search"></i> Buscar Atividades
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Container de resultados -->
+        <div class="results-container">
+            <div id="loadingResults" class="loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>Buscando as melhores ofertas...</p>
+            </div>
+            <div id="flightResults"></div>
+            <div id="hotelResults"></div>
+            <div id="activityResults"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Função para formatar preço
+        function formatPrice(price, currency = 'EUR') {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: currency
+            }).format(price);
+        }
+
+        // Função para formatar duração
+        function formatDuration(duration) {
+            return duration.replace('PT', '').replace('H', 'h ').replace('M', 'm');
+        }
+
+        // Função para formatar data e hora
+        function formatDateTime(dateTimeStr) {
+            const date = new Date(dateTimeStr);
+            return date.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Função para mostrar loading
+        function showLoading() {
+            document.getElementById('loadingResults').style.display = 'block';
+        }
+
+        // Função para esconder loading
+        function hideLoading() {
+            document.getElementById('loadingResults').style.display = 'none';
+        }
+
+        // Função para fazer requisição à API
+        async function fetchAPI(endpoint, data) {
+            showLoading();
+            try {
+                const response = await fetch(`/api/${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                return await response.json();
+            } catch (error) {
+                return { error: error.message };
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Função para renderizar resultados de voos
+        function renderFlightResults(flights) {
+            const container = document.getElementById('flightResults');
+            if (flights.error) {
+                container.innerHTML = `<div class="alert alert-danger">${flights.error}</div>`;
+                return;
+            }
+
+            const html = flights.map(flight => `
+                <div class="result-card">
+                    <div class="result-content">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <img src="https://logos.skyscnr.com/images/airlines/favicon/${flight.validatingAirlineCodes[0]}.png"
+                                     alt="Airline Logo"
+                                     class="airline-logo">
+                                <div class="result-price">
+                                    ${formatPrice(flight.price.total)}
+                                </div>
+                            </div>
+                            <div class="col-md-9">
+                                <div class="result-details">
+                                    <div class="detail-item">
+                                        <i class="fas fa-plane-departure"></i>
+                                        Ida: ${formatDateTime(flight.itineraries[0].segments[0].departure.at)}
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="fas fa-clock"></i>
+                                        Duração: ${formatDuration(flight.itineraries[0].duration)}
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="fas fa-plane-arrival"></i>
+                                        Chegada: ${formatDateTime(flight.itineraries[0].segments[0].arrival.at)}
+                                    </div>
+                                </div>
+                                ${flight.itineraries[1] ? `
+                                    <div class="result-details">
+                                        <div class="detail-item">
+                                            <i class="fas fa-plane-departure"></i>
+                                            Volta: ${formatDateTime(flight.itineraries[1].segments[0].departure.at)}
+                                        </div>
+                                        <div class="detail-item">
+                                            <i class="fas fa-clock"></i>
+                                            Duração: ${formatDuration(flight.itineraries[1].duration)}
+                                        </div>
+                                        <div class="detail-item">
+                                            <i class="fas fa-plane-arrival"></i>
+                                            Chegada: ${formatDateTime(flight.itineraries[1].segments[0].arrival.at)}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        // Função para renderizar resultados de hotéis
+        function renderHotelResults(hotels) {
+            const container = document.getElementById('hotelResults');
+            if (hotels.error) {
+                container.innerHTML = `<div class="alert alert-danger">${hotels.error}</div>`;
+                return;
+            }
+
+            const html = hotels.map(hotel => `
+                <div class="result-card">
+                    <div class="result-content">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="result-title">
+                                    ${hotel.hotel.name}
+                                    ${hotel.hotel.rating ? `
+                                        <div class="hotel-rating">
+                                            ${'★'.repeat(parseInt(hotel.hotel.rating))}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                <div class="result-price">
+                                    ${formatPrice(hotel.offers[0].price.total)}
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="result-details">
+                                    <div class="detail-item">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        ${hotel.hotel.cityName}
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="fas fa-bed"></i>
+                                        ${hotel.offers[0].room.type}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        // Função para renderizar resultados de atividades
+        function renderActivityResults(activities) {
+            const container = document.getElementById('activityResults');
+            if (activities.error) {
+                container.innerHTML = `<div class="alert alert-danger">${activities.error}</div>`;
+                return;
+            }
+
+            const html = activities.map(activity => `
+                <div class="result-card">
+                    ${activity.pictures && activity.pictures.length > 0 ? `
+                        <img src="${activity.pictures[0]}" alt="${activity.name}" class="result-image">
+                    ` : ''}
+                    <div class="result-content">
+                        <div class="result-title">${activity.name}</div>
+                        <div class="result-price">
+                            ${formatPrice(activity.price.amount)}
+                        </div>
+                        <p>${activity.description}</p>
+                        <div class="result-details">
+                            <div class="detail-item">
+                                <i class="fas fa-clock"></i>
+                                Duração: ${activity.minimumDuration}
+                            </div>
+                            ${activity.rating ? `
+                                <div class="detail-item">
+                                    <i class="fas fa-star"></i>
+                                    Avaliação: ${activity.rating}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        // Configurar data mínima como hoje
+        document.querySelectorAll('input[type="date"]').forEach(input => {
+            const today = new Date().toISOString().split('T')[0];
+            input.min = today;
+            input.value = today;
+        });
+
+        // Controle das abas
+        document.querySelectorAll('.search-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active de todas as abas
+                document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
+                // Adiciona active na aba clicada
+                tab.classList.add('active');
+                
+                // Esconde todos os formulários
+                document.querySelectorAll('.search-form').forEach(form => form.style.display = 'none');
+                // Mostra o formulário correspondente
+                document.getElementById(`${tab.dataset.tab}Search`).style.display = 'block';
+                
+                // Limpa os resultados
+                document.querySelectorAll('.results-container > div').forEach(div => {
+                    if (div.id !== 'loadingResults') {
+                        div.innerHTML = '';
+                    }
+                });
+            });
+        });
+
+        // Busca de Voos
+        document.getElementById('flightForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const data = {
+                origin: form.origin.value,
+                destination: form.destination.value,
+                departure_date: form.departure_date.value,
+                return_date: form.return_date.value || null
+            };
+            const results = await fetchAPI('flights', data);
+            renderFlightResults(results);
+        });
+
+        // Busca de Hotéis
+        document.getElementById('hotelForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const data = {
+                city_code: form.city_code.value,
+                check_in_date: form.check_in_date.value,
+                check_out_date: form.check_out_date.value
+            };
+            const results = await fetchAPI('hotels', data);
+            renderHotelResults(results);
+        });
+
+        // Busca de Atividades
+        document.getElementById('activityForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const data = {
+                latitude: parseFloat(form.latitude.value),
+                longitude: parseFloat(form.longitude.value)
+            };
+            const results = await fetchAPI('activities', data);
+            renderActivityResults(results);
+        });
+    </script>
+</body>
+</html>
