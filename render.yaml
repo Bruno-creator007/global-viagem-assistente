@@ -3,7 +3,7 @@ services:
     name: global-viagem-assistente
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: PYTHONPATH=/opt/render/project/src gunicorn wsgi:app
+    startCommand: gunicorn wsgi:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
@@ -13,3 +13,7 @@ services:
         sync: false
       - key: AMADEUS_API_SECRET
         sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///instance/app.db
