@@ -1,42 +1,24 @@
-from flask import Flask, request, jsonify, send_from_directory, render_template
-from flask_cors import CORS
+from flask import Flask, jsonify, request, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
-import openai
-import os
-import logging
-from datetime import datetime
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Configure OpenAI
-OPENAI_API_KEY = 'your_openai_api_key'
-openai.api_key = OPENAI_API_KEY
-if not openai.api_key:
-    logger.error("OpenAI API key not found!")
-    raise ValueError("OpenAI API key not found in environment variables")
+from flask_login import LoginManager, UserMixin
+from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Initialize Flask app
-app = Flask(__name__, 
-    static_folder='frontend',
-    template_folder='frontend/templates'
-)
+app = Flask(__name__)
 
-# Configure Flask app
-SECRET_KEY = 'your_secret_key'
-SQLALCHEMY_DATABASE_URI = 'sqlite:///app.db'
-SQLALCHEMY_TRACK_MODIFICATIONS = False
-app.config['SECRET_KEY'] = SECRET_KEY
-app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = SQLALCHEMY_TRACK_MODIFICATIONS
+# Configure app
+app.config['SECRET_KEY'] = 'dev'  # será substituído pelo valor do Render
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
-CORS(app)
 db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+CORS(app)
 
-# Modelo de usuário
-class User(db.Model):
+# User model
+class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -48,23 +30,22 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-# Modelo de função do assistente
-class AssistantFunction(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), unique=True, nullable=False)
-    description = db.Column(db.String(120), nullable=False)
-    active = db.Column(db.Boolean, default=True)
-    system_message = db.Column(db.String(120), nullable=False)
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
-# Modelo de uso da função do assistente
-class Usage(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    function_id = db.Column(db.Integer, db.ForeignKey('assistant_function.id'))
-    user_message = db.Column(db.String(120), nullable=False)
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+# Routes
+@app.route('/')
+def index():
+    return jsonify({"message": "Welcome to the Travel Assistant API"})
 
-# Criação das tabelas
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy"})
+
+# Create database tables
 with app.app_context():
     db.create_all()
 
-# ... (rest of your code remains the same)
+if __name__ == '__main__':
+    app.run()
