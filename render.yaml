@@ -3,7 +3,7 @@ services:
     name: global-viagem-assistente
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app
+    startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
@@ -17,5 +17,3 @@ services:
         generateValue: true
       - key: DATABASE_URL
         value: sqlite:///instance/app.db
-      - key: PYTHONPATH
-        value: .
