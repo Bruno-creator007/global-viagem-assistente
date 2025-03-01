@@ -63,15 +63,7 @@
             padding: 15px;
         }
 
-        @media (max-width: 768px) {
-            .features-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-                padding: 10px;
-            }
-        }
-
-        .feature-button {
+        .feature-btn {
             background-color: white;
             border: 2px solid var(--primary-color);
             border-radius: 8px;
@@ -84,9 +76,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            color: var(--text-color);
+            text-decoration: none;
+            width: 100%;
         }
 
-        .feature-button:hover {
+        .feature-btn:hover {
             background-color: var(--primary-color);
             color: white;
             transform: translateY(-2px);
@@ -99,11 +94,9 @@
             gap: 20px;
             background-color: white;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             padding: 20px;
-            margin: 0 15px;
-            max-height: calc(100vh - 300px);
-            min-height: 400px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
         }
 
         #chatHistory {
@@ -137,62 +130,67 @@
         .input-container {
             display: flex;
             gap: 10px;
-            padding: 10px;
-            background-color: white;
-            border-radius: 8px;
             position: sticky;
             bottom: 0;
-            margin-top: auto;
+            background-color: white;
+            padding: 20px;
+            border-top: 1px solid #ddd;
         }
 
         #userInput {
             flex: 1;
-            padding: 12px;
+            padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 16px;
         }
 
         #sendButton {
-            padding: 12px 24px;
+            padding: 10px 20px;
             background-color: var(--primary-color);
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s ease;
         }
 
         #sendButton:hover {
             background-color: var(--secondary-color);
         }
 
-        @media (max-width: 768px) {
-            .container {
-                padding: 10px;
-            }
-
-            .chat-container {
-                margin: 0 10px;
-                max-height: calc(100vh - 250px);
-                min-height: 300px;
-            }
-
-            .message {
-                max-width: 90%;
-            }
-
-            #userInput {
-                padding: 10px;
-                font-size: 14px;
-            }
-
-            #sendButton {
-                padding: 10px 20px;
-            }
+        .auth-container {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            padding: 10px;
         }
 
-        /* Modal styles */
+        .auth-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #loginButton, #registerButton {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        #logoutButton {
+            background-color: #dc3545;
+            color: white;
+            display: none;
+        }
+
+        #userInfo {
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -200,7 +198,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0, 0, 0, 0.5);
             z-index: 1000;
         }
 
@@ -209,12 +207,11 @@
             margin: 15% auto;
             padding: 20px;
             border-radius: 8px;
-            width: 90%;
-            max-width: 500px;
+            max-width: 400px;
             position: relative;
         }
 
-        .close-button {
+        .close {
             position: absolute;
             right: 10px;
             top: 10px;
@@ -238,33 +235,29 @@
             border-radius: 4px;
         }
 
-        .modal-button {
+        .form-group button {
+            width: 100%;
+            padding: 10px;
             background-color: var(--primary-color);
             color: white;
-            padding: 10px 20px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
         }
 
-        .modal-button:hover {
-            background-color: var(--secondary-color);
-        }
+        @media (max-width: 768px) {
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
 
-        .auth-status {
-            text-align: right;
-            padding: 10px;
-            font-size: 14px;
-        }
+            .message {
+                max-width: 90%;
+            }
 
-        .auth-button {
-            background: none;
-            border: none;
-            color: var(--primary-color);
-            cursor: pointer;
-            text-decoration: underline;
+            .modal-content {
+                margin: 20% auto;
+                width: 90%;
+            }
         }
     </style>
 </head>
@@ -272,25 +265,32 @@
     <div class="container">
         <header>
             <h1>Assistente de Viagem</h1>
-            <div class="auth-status" id="authStatus"></div>
+            <div class="auth-container">
+                <div id="userInfo">
+                    <span id="userEmail"></span>
+                    <button id="logoutButton" class="auth-btn">Sair</button>
+                </div>
+                <button id="loginButton" class="auth-btn">Login</button>
+                <button id="registerButton" class="auth-btn">Registrar</button>
+            </div>
         </header>
 
         <main>
             <div class="features-grid">
-                <button class="feature-button" data-feature="roteiro">Roteiro</button>
-                <button class="feature-button" data-feature="trem">Viagem de Trem</button>
-                <button class="feature-button" data-feature="precos">Preços</button>
-                <button class="feature-button" data-feature="checklist">Checklist</button>
-                <button class="feature-button" data-feature="gastronomia">Gastronomia</button>
-                <button class="feature-button" data-feature="documentacao">Documentação</button>
-                <button class="feature-button" data-feature="guia">Guia Local</button>
-                <button class="feature-button" data-feature="festivais">Festivais</button>
-                <button class="feature-button" data-feature="hospedagem">Hospedagem</button>
-                <button class="feature-button" data-feature="historias">Histórias</button>
-                <button class="feature-button" data-feature="frases">Frases Úteis</button>
-                <button class="feature-button" data-feature="seguranca">Segurança</button>
-                <button class="feature-button" data-feature="hospitais">Hospitais</button>
-                <button class="feature-button" data-feature="consulados">Consulados</button>
+                <button class="feature-btn" data-feature="roteiro">Roteiro</button>
+                <button class="feature-btn" data-feature="trem">Viagem de Trem</button>
+                <button class="feature-btn" data-feature="precos">Preços</button>
+                <button class="feature-btn" data-feature="checklist">Checklist</button>
+                <button class="feature-btn" data-feature="gastronomia">Gastronomia</button>
+                <button class="feature-btn" data-feature="documentacao">Documentação</button>
+                <button class="feature-btn" data-feature="guia">Guia Local</button>
+                <button class="feature-btn" data-feature="festivais">Festivais</button>
+                <button class="feature-btn" data-feature="hospedagem">Hospedagem</button>
+                <button class="feature-btn" data-feature="historias">Histórias</button>
+                <button class="feature-btn" data-feature="frases">Frases Úteis</button>
+                <button class="feature-btn" data-feature="seguranca">Segurança</button>
+                <button class="feature-btn" data-feature="hospitais">Hospitais</button>
+                <button class="feature-btn" data-feature="consulados">Consulados</button>
             </div>
 
             <div class="chat-container">
@@ -303,10 +303,10 @@
         </main>
     </div>
 
-    <!-- Login Modal -->
+    <!-- Modal de Login -->
     <div id="loginModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" onclick="closeLoginModal()">&times;</span>
+            <span class="close">&times;</span>
             <h2>Login</h2>
             <form id="loginForm">
                 <div class="form-group">
@@ -317,17 +317,18 @@
                     <label for="loginPassword">Senha:</label>
                     <input type="password" id="loginPassword" required>
                 </div>
-                <button type="submit" class="modal-button">Entrar</button>
-                <button type="button" class="modal-button" onclick="showRegisterModal()">Criar Conta</button>
+                <div class="form-group">
+                    <button type="submit">Entrar</button>
+                </div>
             </form>
         </div>
     </div>
 
-    <!-- Register Modal -->
+    <!-- Modal de Registro -->
     <div id="registerModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" onclick="closeRegisterModal()">&times;</span>
-            <h2>Criar Conta</h2>
+            <span class="close">&times;</span>
+            <h2>Registrar</h2>
             <form id="registerForm">
                 <div class="form-group">
                     <label for="registerEmail">Email:</label>
@@ -337,8 +338,9 @@
                     <label for="registerPassword">Senha:</label>
                     <input type="password" id="registerPassword" required>
                 </div>
-                <button type="submit" class="modal-button">Criar Conta</button>
-                <button type="button" class="modal-button" onclick="showLoginModal()">Já tenho uma conta</button>
+                <div class="form-group">
+                    <button type="submit">Registrar</button>
+                </div>
             </form>
         </div>
     </div>

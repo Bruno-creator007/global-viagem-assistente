@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateUIForLoggedInUser();
                 hideLoginModal();
             } else {
-                alert(data.error);
+                alert(data.error || 'Erro ao fazer login');
             }
         } catch (error) {
             console.error('Erro ao fazer login:', error);
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateUIForLoggedInUser();
                 hideRegisterModal();
             } else {
-                alert(data.error);
+                alert(data.error || 'Erro ao registrar');
             }
         } catch (error) {
             console.error('Erro ao registrar:', error);
@@ -113,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function logout() {
         try {
             await fetch(`${API_URL}/api/logout`, {
+                method: 'POST',
                 credentials: 'include'
             });
             currentUser = null;
@@ -126,99 +127,59 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateUIForLoggedInUser() {
         loginButton.style.display = 'none';
         registerButton.style.display = 'none';
-        userInfo.style.display = 'inline-flex';
+        userInfo.style.display = 'flex';
+        logoutButton.style.display = 'block';
         userEmail.textContent = currentUser.email;
     }
 
     function updateUIForLoggedOutUser() {
-        loginButton.style.display = 'inline-block';
-        registerButton.style.display = 'inline-block';
+        loginButton.style.display = 'block';
+        registerButton.style.display = 'block';
         userInfo.style.display = 'none';
+        logoutButton.style.display = 'none';
         userEmail.textContent = '';
     }
 
     function showLoginModal() {
-        loginModal.classList.add('show');
+        loginModal.style.display = 'block';
     }
 
     function hideLoginModal() {
-        loginModal.classList.remove('show');
+        loginModal.style.display = 'none';
         loginForm.reset();
     }
 
     function showRegisterModal() {
-        registerModal.classList.add('show');
+        registerModal.style.display = 'block';
     }
 
     function hideRegisterModal() {
-        registerModal.classList.remove('show');
+        registerModal.style.display = 'none';
         registerForm.reset();
     }
 
     function scrollToInput() {
-        setTimeout(() => {
-            userInput.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center'
+        const inputRect = userInput.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        
+        if (inputRect.bottom > windowHeight) {
+            window.scrollTo({
+                top: window.scrollY + (inputRect.bottom - windowHeight) + 20,
+                behavior: 'smooth'
             });
-            setTimeout(() => {
-                userInput.focus();
-            }, 500);
-        }, 100);
+        }
     }
 
     function addMessage(content, isUser = false) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
         
-        if (isUser) {
-            messageDiv.textContent = content;
-        } else {
-            // Convert line breaks to HTML and handle markdown-style formatting
-            const formattedContent = content
-                .replace(/\n\n/g, '</p><p>')
-                .replace(/\n/g, '<br>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/^- /gm, '• ');
-
-            messageDiv.innerHTML = `<p>${formattedContent}</p>`;
-        }
+        // Formata o conteúdo com quebras de linha
+        const formattedContent = content.replace(/\n/g, '<br>');
+        messageDiv.innerHTML = formattedContent;
         
         chatHistory.appendChild(messageDiv);
         chatHistory.scrollTop = chatHistory.scrollHeight;
-    }
-
-    async function updateUsageUI() {
-        try {
-            const response = await fetch(`${API_URL}/api/check_usage`, {
-                credentials: 'include'
-            });
-            const data = await response.json();
-            
-            const usageInfo = document.getElementById('usageInfo');
-            if (data.uses_remaining > 0) {
-                usageInfo.textContent = `${data.uses_remaining} usos gratuitos restantes`;
-                usageInfo.style.display = 'block';
-            } else {
-                usageInfo.style.display = 'none';
-            }
-        } catch (error) {
-            console.error('Erro ao atualizar informações de uso:', error);
-        }
-    }
-
-    async function checkUsage() {
-        try {
-            const response = await fetch(`${API_URL}/api/check_usage`, {
-                credentials: 'include'
-            });
-            const data = await response.json();
-            usesRemaining = data.uses_remaining;
-            requiresLogin = data.requires_login;
-        } catch (error) {
-            console.error('Error checking usage:', error);
-        }
     }
 
     async function handleFeatureClick(feature) {
@@ -303,6 +264,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const message = userInput.value.trim();
             if (!message) return;
 
+            const feature = userInput.getAttribute('data-feature');
+            if (!feature) {
+                addMessage('Por favor, selecione uma função antes de enviar sua mensagem.');
+                return;
+            }
+
             const authResponse = await fetch(`${API_URL}/api/check_auth`, {
                 credentials: 'include'
             });
@@ -322,170 +289,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const feature = userInput.getAttribute('data-feature');
-            if (!feature) {
-                addMessage('Por favor, selecione uma função antes de enviar sua mensagem.');
-                return;
-            }
-
             addMessage(message, true);
             userInput.value = '';
 
-            try {
-                // Verificar uso gratuito
-                await checkUsage();
-                if (requiresLogin) {
-                    showLoginModal();
-                    return;
-                }
+            const response = await fetch(`${API_URL}/api/feature/${feature}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    message: message
+                })
+            });
 
-                let response;
-                try {
-                    const requestBody = { message };
-
-                    // Add specific parameters based on the feature
-                    switch (feature) {
-                        case 'roteiro':
-                            const [destino, dias] = message.split(' por ');
-                            response = await fetch(`${API_URL}/api/roteiro`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ destino, dias: dias || '5' })
-                            });
-                            break;
-                        case 'trem':
-                            response = await fetch(`${API_URL}/api/trem`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ destinos: message })
-                            });
-                            break;
-                        case 'precos':
-                            response = await fetch(`${API_URL}/api/precos`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ destino: message })
-                            });
-                            break;
-                        case 'checklist':
-                            response = await fetch(`${API_URL}/api/checklist`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ destino: message })
-                            });
-                            break;
-                        case 'gastronomia':
-                            response = await fetch(`${API_URL}/api/gastronomia`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ destino: message })
-                            });
-                            break;
-                        case 'documentacao':
-                            response = await fetch(`${API_URL}/api/documentacao`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ destino: message, origem: 'Brasil' })
-                            });
-                            break;
-                        case 'guia':
-                            response = await fetch(`${API_URL}/api/guia`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ local: message })
-                            });
-                            break;
-                        case 'festivais':
-                            response = await fetch(`${API_URL}/api/festivais`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ cidade: message })
-                            });
-                            break;
-                        case 'hospedagem':
-                            response = await fetch(`${API_URL}/api/hospedagem`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ cidade: message })
-                            });
-                            break;
-                        case 'historias':
-                            response = await fetch(`${API_URL}/api/historias`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ cidade: message })
-                            });
-                            break;
-                        case 'frases':
-                            response = await fetch(`${API_URL}/api/frases`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ idioma: message })
-                            });
-                            break;
-                        case 'seguranca':
-                            response = await fetch(`${API_URL}/api/seguranca`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ cidade: message })
-                            });
-                            break;
-                        case 'hospitais':
-                            response = await fetch(`${API_URL}/api/hospitais`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ cidade: message })
-                            });
-                            break;
-                        case 'consulados':
-                            response = await fetch(`${API_URL}/api/consulados`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ cidade: message })
-                            });
-                            break;
-                        default:
-                            response = await fetch(`${API_URL}/api/chat`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({ message })
-                            });
-                    }
-
-                    const data = await response.json();
-                    if (data.success) {
-                        addMessage(data.response, false);
-                    } else {
-                        throw new Error(data.error);
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.', false);
-                }
-
-                userInput.removeAttribute('data-feature');
-            } catch (error) {
-                console.error('Error:', error);
-                addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.', false);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erro ao processar sua solicitação');
             }
+
+            const data = await response.json();
+            addMessage(data.response, false);
+            scrollToInput();
+
         } catch (error) {
-            console.error('Error:', error);
-            addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.', false);
+            console.error('Erro:', error);
+            addMessage("Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.", false);
         }
     }
 
@@ -494,24 +323,36 @@ document.addEventListener('DOMContentLoaded', () => {
     registerButton.addEventListener('click', showRegisterModal);
     logoutButton.addEventListener('click', logout);
 
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('loginEmail').value;
         const password = document.getElementById('loginPassword').value;
-        login(email, password);
+        await login(email, password);
     });
 
-    registerForm.addEventListener('submit', (e) => {
+    registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('registerEmail').value;
         const password = document.getElementById('registerPassword').value;
-        register(email, password);
+        await register(email, password);
     });
 
-    // Fechar modais ao clicar fora
+    document.querySelectorAll('.close').forEach(closeBtn => {
+        closeBtn.addEventListener('click', () => {
+            hideLoginModal();
+            hideRegisterModal();
+        });
+    });
+
     window.addEventListener('click', (e) => {
         if (e.target === loginModal) hideLoginModal();
         if (e.target === registerModal) hideRegisterModal();
+    });
+
+    featureButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            handleFeatureClick(button.getAttribute('data-feature'));
+        });
     });
 
     sendButton.addEventListener('click', handleSend);
@@ -519,27 +360,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') handleSend();
     });
 
-    featureButtons.forEach(button => {
-        if (!button.classList.contains('reserva')) {
-            button.addEventListener('click', () => {
-                const feature = button.getAttribute('data-feature');
-                handleFeatureClick(feature);
-            });
-        }
-    });
-
-    // Prevenir que o teclado virtual esconda o campo de input em dispositivos móveis
-    if ('virtualKeyboard' in navigator) {
-        navigator.virtualKeyboard.overlaysContent = true;
-    }
-
-    // Ajustar visualização quando o teclado virtual aparece
-    window.addEventListener('resize', () => {
-        if (document.activeElement === userInput) {
-            scrollToInput();
-        }
-    });
-
+    // Inicialização
     checkAuthStatus();
-    updateUsageUI();
 });
