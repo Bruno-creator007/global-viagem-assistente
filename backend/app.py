@@ -9,12 +9,13 @@ import hmac
 import hashlib
 from os import environ
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = environ.get('SECRET_KEY', 'dev_key_change_this')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app = Flask(__name__, static_folder='../frontend', static_url_path='')
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'sua_chave_secreta')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
+db = SQLAlchemy()
+db.init_app(app)
 login_manager = LoginManager(app)
 CORS(app, supports_credentials=True)
 
@@ -158,9 +159,6 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-
-app = Flask(__name__, static_folder='../frontend')
-CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Configure OpenAI
 api_key = os.getenv('OPENAI_API_KEY')
