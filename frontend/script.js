@@ -505,7 +505,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function scrollToInput() {
         setTimeout(() => {
-            userInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            userInput.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center'
+            });
+            // Foca no input após rolar a tela
+            setTimeout(() => {
+                userInput.focus();
+            }, 500);
         }, 100);
     }
 
@@ -559,7 +566,6 @@ document.addEventListener('DOMContentLoaded', () => {
         userInput.setAttribute('data-feature', feature);
         userInput.placeholder = prompt;
         userInput.value = '';
-        userInput.focus();
         scrollToInput();
     }
 
@@ -609,6 +615,18 @@ document.addEventListener('DOMContentLoaded', () => {
     sendButton.addEventListener('click', handleSend);
     userInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleSend();
+    });
+
+    // Prevenir que o teclado virtual esconda o campo de input em dispositivos móveis
+    if ('virtualKeyboard' in navigator) {
+        navigator.virtualKeyboard.overlaysContent = true;
+    }
+
+    // Ajustar visualização quando o teclado virtual aparece
+    window.addEventListener('resize', () => {
+        if (document.activeElement === userInput) {
+            scrollToInput();
+        }
     });
 
     checkAuthStatus();
