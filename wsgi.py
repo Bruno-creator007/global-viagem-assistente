@@ -2,7 +2,8 @@ import os
 import sys
 
 # Adiciona o diretório do projeto ao PYTHONPATH
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+project_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(project_dir)
 
 from backend.app import app
 

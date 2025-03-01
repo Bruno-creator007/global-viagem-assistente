@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
 
+    // Estado global
+    let usesRemaining = 3;
+    let requiresLogin = false;
+
     // Funções de autenticação
     async function checkAuthStatus() {
         try {
@@ -151,291 +155,16 @@ document.addEventListener('DOMContentLoaded', () => {
         registerForm.reset();
     }
 
-    // Event Listeners
-    loginButton.addEventListener('click', showLoginModal);
-    registerButton.addEventListener('click', showRegisterModal);
-    logoutButton.addEventListener('click', logout);
-
-    loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-        login(email, password);
-    });
-
-    registerForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const email = document.getElementById('registerEmail').value;
-        const password = document.getElementById('registerPassword').value;
-        register(email, password);
-    });
-
-    // Fechar modais ao clicar fora
-    window.addEventListener('click', (e) => {
-        if (e.target === loginModal) hideLoginModal();
-        if (e.target === registerModal) hideRegisterModal();
-    });
-
-    // Verificar assinatura antes de cada requisição
-    async function checkSubscription() {
-        if (!currentUser) {
-            showRegisterModal();
-            return false;
-        }
-        
-        if (currentUser.subscription_active) {
-            return true;
-        }
-        
-        try {
-            const response = await fetch(`${API_URL}/api/check_subscription/${currentUser.id}`, {
-                credentials: 'include'
+    function scrollToInput() {
+        setTimeout(() => {
+            userInput.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center'
             });
-            const data = await response.json();
-            
-            if (data.subscription_required) {
-                showSubscriptionModal();
-                return false;
-            }
-            return true;
-        } catch (error) {
-            console.error('Erro ao verificar assinatura:', error);
-            return false;
-        }
-    }
-
-    async function checkUsageLimit() {
-        try {
-            const response = await fetch(`${API_URL}/api/check_usage`, {
-                credentials: 'include'
-            });
-            const data = await response.json();
-            
-            if (data.requires_login) {
-                if (!currentUser) {
-                    showRegisterModal();
-                    return false;
-                }
-                if (!currentUser.subscription_active) {
-                    showSubscriptionModal();
-                    return false;
-                }
-            }
-            return true;
-        } catch (error) {
-            console.error('Erro ao verificar limite de uso:', error);
-            return true;
-        }
-    }
-
-    async function handleFeatureClick(feature) {
-        if (!await checkUsageLimit()) {
-            return;
-        }
-        let prompt;
-        switch (feature) {
-            case 'roteiro':
-                prompt = 'Por favor, me diga para qual destino você gostaria de um roteiro e por quantos dias?';
-                break;
-            case 'trem':
-                prompt = 'Informe quais países da Europa você quer conhecer e quantos dias de viagem no total:';
-                break;
-            case 'precos':
-                prompt = 'Para qual destino você gostaria de saber os preços e quantos dias de viagem?';
-                break;
-            case 'checklist':
-                prompt = 'Para qual destino você precisa de um checklist de viagem?';
-                break;
-            case 'gastronomia':
-                prompt = 'Qual cidade você quer conhecer a gastronomia? (Informe também se prefere opções econômicas, intermediárias ou luxuosas)';
-                break;
-            case 'documentacao':
-                prompt = 'Para qual país você precisa de informações sobre documentação?';
-                break;
-            case 'guia':
-                prompt = 'Em qual cidade você está e quanto tempo tem disponível para passeios?';
-                break;
-            case 'festivais':
-                prompt = 'Para qual cidade você deseja saber sobre festivais e eventos?';
-                break;
-            case 'hospedagem':
-                prompt = 'Para qual cidade você gostaria de recomendações de áreas para hospedagem?';
-                break;
-            case 'historias':
-                prompt = 'Sobre qual cidade você gostaria de saber histórias e curiosidades?';
-                break;
-            case 'frases':
-                prompt = 'Para qual idioma você gostaria de receber frases úteis? (Ex: francês, espanhol)';
-                break;
-            case 'seguranca':
-                prompt = 'Para qual cidade você gostaria de dicas de segurança?';
-                break;
-            case 'hospitais':
-                prompt = 'Em qual cidade você precisa de informações sobre hospitais próximos?';
-                break;
-            case 'consulados':
-                prompt = 'Em qual cidade você gostaria de encontrar consulados?';
-                break;
-            default:
-                return;
-        }
-
-        addMessage(prompt, false);
-        userInput.focus();
-        userInput.setAttribute('data-feature', feature);
-    }
-
-    async function handleSend() {
-        if (!await checkUsageLimit()) {
-            return;
-        }
-        const message = userInput.value.trim();
-        if (!message) return;
-
-        const feature = userInput.getAttribute('data-feature') || 'chat';
-        addMessage(message, true);
-        userInput.value = '';
-
-        let response;
-        try {
-            const requestBody = { message };
-
-            // Add specific parameters based on the feature
-            switch (feature) {
-                case 'roteiro':
-                    const [destino, dias] = message.split(' por ');
-                    response = await fetch(`${API_URL}/api/roteiro`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ destino, dias: dias || '5' })
-                    });
-                    break;
-                case 'trem':
-                    response = await fetch(`${API_URL}/api/trem`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ destinos: message })
-                    });
-                    break;
-                case 'precos':
-                    response = await fetch(`${API_URL}/api/precos`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ destino: message })
-                    });
-                    break;
-                case 'checklist':
-                    response = await fetch(`${API_URL}/api/checklist`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ destino: message })
-                    });
-                    break;
-                case 'gastronomia':
-                    response = await fetch(`${API_URL}/api/gastronomia`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ destino: message })
-                    });
-                    break;
-                case 'documentacao':
-                    response = await fetch(`${API_URL}/api/documentacao`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ destino: message, origem: 'Brasil' })
-                    });
-                    break;
-                case 'guia':
-                    response = await fetch(`${API_URL}/api/guia`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ local: message })
-                    });
-                    break;
-                case 'festivais':
-                    response = await fetch(`${API_URL}/api/festivais`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                case 'hospedagem':
-                    response = await fetch(`${API_URL}/api/hospedagem`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                case 'historias':
-                    response = await fetch(`${API_URL}/api/historias`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                case 'frases':
-                    response = await fetch(`${API_URL}/api/frases`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ idioma: message })
-                    });
-                    break;
-                case 'seguranca':
-                    response = await fetch(`${API_URL}/api/seguranca`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                case 'hospitais':
-                    response = await fetch(`${API_URL}/api/hospitais`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                case 'consulados':
-                    response = await fetch(`${API_URL}/api/consulados`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                default:
-                    response = await fetch(`${API_URL}/api/chat`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ message })
-                    });
-            }
-
-            const data = await response.json();
-            if (data.success) {
-                addMessage(data.response, false);
-            } else {
-                throw new Error(data.error);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.', false);
-        }
-
-        userInput.removeAttribute('data-feature');
+            setTimeout(() => {
+                userInput.focus();
+            }, 500);
+        }, 100);
     }
 
     function addMessage(content, isUser = false) {
@@ -479,19 +208,315 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    sendButton.addEventListener('click', async () => {
-        if (!await checkSubscription()) {
-            return;
+    async function checkUsage() {
+        try {
+            const response = await fetch(`${API_URL}/api/check_usage`, {
+                credentials: 'include'
+            });
+            const data = await response.json();
+            usesRemaining = data.uses_remaining;
+            requiresLogin = data.requires_login;
+        } catch (error) {
+            console.error('Error checking usage:', error);
         }
-        handleSend();
-    });
-    userInput.addEventListener('keypress', async (e) => {
-        if (e.key === 'Enter') {
-            if (!await checkSubscription()) {
+    }
+
+    async function handleFeatureClick(feature) {
+        try {
+            const response = await fetch(`${API_URL}/api/check_auth`, {
+                credentials: 'include'
+            });
+            const authData = await response.json();
+
+            if (!authData.authenticated) {
+                showLoginModal();
+                addMessage("Por favor, faça login para continuar usando o assistente.", false);
                 return;
             }
-            handleSend();
+
+            if (!authData.subscription_active) {
+                addMessage("Você precisa de uma assinatura ativa para usar esta função. Redirecionando para a página de pagamento...", false);
+                setTimeout(() => {
+                    window.location.href = 'https://pay.kiwify.com.br/Ug7fYhB';
+                }, 3000);
+                return;
+            }
+
+            let prompt;
+            switch (feature) {
+                case 'roteiro':
+                    prompt = 'Por favor, me diga para qual destino você gostaria de um roteiro e por quantos dias?';
+                    break;
+                case 'trem':
+                    prompt = 'Informe quais países da Europa você quer conhecer e quantos dias de viagem no total:';
+                    break;
+                case 'precos':
+                    prompt = 'Para qual destino você gostaria de saber os preços e quantos dias de viagem?';
+                    break;
+                case 'checklist':
+                    prompt = 'Para qual destino você precisa de um checklist de viagem?';
+                    break;
+                case 'gastronomia':
+                    prompt = 'Qual cidade você quer conhecer a gastronomia? (Informe também se prefere opções econômicas, intermediárias ou luxuosas)';
+                    break;
+                case 'documentacao':
+                    prompt = 'Para qual país você precisa de informações sobre documentação?';
+                    break;
+                case 'guia':
+                    prompt = 'Em qual cidade você está e quanto tempo tem disponível para passeios?';
+                    break;
+                case 'festivais':
+                    prompt = 'Para qual cidade você deseja saber sobre festivais e eventos?';
+                    break;
+                case 'hospedagem':
+                    prompt = 'Para qual cidade você gostaria de recomendações de hospedagem?';
+                    break;
+                case 'historias':
+                    prompt = 'Sobre qual cidade você gostaria de saber histórias e curiosidades?';
+                    break;
+                case 'frases':
+                    prompt = 'Para qual idioma você gostaria de receber frases úteis? (Ex: francês, espanhol)';
+                    break;
+                case 'seguranca':
+                    prompt = 'Para qual cidade você gostaria de dicas de segurança?';
+                    break;
+                case 'hospitais':
+                    prompt = 'Em qual cidade você precisa de informações sobre hospitais próximos?';
+                    break;
+                case 'consulados':
+                    prompt = 'Em qual cidade você gostaria de encontrar consulados?';
+                    break;
+            }
+            
+            userInput.setAttribute('data-feature', feature);
+            userInput.placeholder = prompt;
+            userInput.value = '';
+            scrollToInput();
+        } catch (error) {
+            console.error('Erro:', error);
+            addMessage("Desculpe, ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.", false);
         }
+    }
+
+    async function handleSend() {
+        try {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            const authResponse = await fetch(`${API_URL}/api/check_auth`, {
+                credentials: 'include'
+            });
+            const authData = await authResponse.json();
+
+            if (!authData.authenticated) {
+                showLoginModal();
+                addMessage("Por favor, faça login para continuar usando o assistente.", false);
+                return;
+            }
+
+            if (!authData.subscription_active) {
+                addMessage("Você precisa de uma assinatura ativa para usar esta função. Redirecionando para a página de pagamento...", false);
+                setTimeout(() => {
+                    window.location.href = 'https://pay.kiwify.com.br/Ug7fYhB';
+                }, 3000);
+                return;
+            }
+
+            const feature = userInput.getAttribute('data-feature');
+            if (!feature) {
+                addMessage('Por favor, selecione uma função antes de enviar sua mensagem.');
+                return;
+            }
+
+            addMessage(message, true);
+            userInput.value = '';
+
+            try {
+                // Verificar uso gratuito
+                await checkUsage();
+                if (requiresLogin) {
+                    showLoginModal();
+                    return;
+                }
+
+                let response;
+                try {
+                    const requestBody = { message };
+
+                    // Add specific parameters based on the feature
+                    switch (feature) {
+                        case 'roteiro':
+                            const [destino, dias] = message.split(' por ');
+                            response = await fetch(`${API_URL}/api/roteiro`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ destino, dias: dias || '5' })
+                            });
+                            break;
+                        case 'trem':
+                            response = await fetch(`${API_URL}/api/trem`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ destinos: message })
+                            });
+                            break;
+                        case 'precos':
+                            response = await fetch(`${API_URL}/api/precos`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ destino: message })
+                            });
+                            break;
+                        case 'checklist':
+                            response = await fetch(`${API_URL}/api/checklist`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ destino: message })
+                            });
+                            break;
+                        case 'gastronomia':
+                            response = await fetch(`${API_URL}/api/gastronomia`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ destino: message })
+                            });
+                            break;
+                        case 'documentacao':
+                            response = await fetch(`${API_URL}/api/documentacao`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ destino: message, origem: 'Brasil' })
+                            });
+                            break;
+                        case 'guia':
+                            response = await fetch(`${API_URL}/api/guia`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ local: message })
+                            });
+                            break;
+                        case 'festivais':
+                            response = await fetch(`${API_URL}/api/festivais`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ cidade: message })
+                            });
+                            break;
+                        case 'hospedagem':
+                            response = await fetch(`${API_URL}/api/hospedagem`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ cidade: message })
+                            });
+                            break;
+                        case 'historias':
+                            response = await fetch(`${API_URL}/api/historias`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ cidade: message })
+                            });
+                            break;
+                        case 'frases':
+                            response = await fetch(`${API_URL}/api/frases`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ idioma: message })
+                            });
+                            break;
+                        case 'seguranca':
+                            response = await fetch(`${API_URL}/api/seguranca`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ cidade: message })
+                            });
+                            break;
+                        case 'hospitais':
+                            response = await fetch(`${API_URL}/api/hospitais`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ cidade: message })
+                            });
+                            break;
+                        case 'consulados':
+                            response = await fetch(`${API_URL}/api/consulados`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ cidade: message })
+                            });
+                            break;
+                        default:
+                            response = await fetch(`${API_URL}/api/chat`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ message })
+                            });
+                    }
+
+                    const data = await response.json();
+                    if (data.success) {
+                        addMessage(data.response, false);
+                    } else {
+                        throw new Error(data.error);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.', false);
+                }
+
+                userInput.removeAttribute('data-feature');
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.', false);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.', false);
+        }
+    }
+
+    // Event Listeners
+    loginButton.addEventListener('click', showLoginModal);
+    registerButton.addEventListener('click', showRegisterModal);
+    logoutButton.addEventListener('click', logout);
+
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        login(email, password);
+    });
+
+    registerForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('registerEmail').value;
+        const password = document.getElementById('registerPassword').value;
+        register(email, password);
+    });
+
+    // Fechar modais ao clicar fora
+    window.addEventListener('click', (e) => {
+        if (e.target === loginModal) hideLoginModal();
+        if (e.target === registerModal) hideRegisterModal();
+    });
+
+    sendButton.addEventListener('click', handleSend);
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSend();
     });
 
     featureButtons.forEach(button => {
@@ -501,120 +526,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleFeatureClick(feature);
             });
         }
-    });
-
-    function scrollToInput() {
-        setTimeout(() => {
-            userInput.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center'
-            });
-            // Foca no input após rolar a tela
-            setTimeout(() => {
-                userInput.focus();
-            }, 500);
-        }, 100);
-    }
-
-    async function handleFeatureClick(feature) {
-        let prompt;
-        switch (feature) {
-            case 'roteiro':
-                prompt = 'Digite o destino e quantidade de dias (ex: "Paris 5 dias"):';
-                break;
-            case 'trem':
-                prompt = 'Digite as cidades que deseja visitar de trem:';
-                break;
-            case 'precos':
-                prompt = 'Digite o destino para saber os custos:';
-                break;
-            case 'checklist':
-                prompt = 'Digite o destino para receber uma lista do que levar:';
-                break;
-            case 'gastronomia':
-                prompt = 'Digite o destino para conhecer a gastronomia local:';
-                break;
-            case 'documentacao':
-                prompt = 'Digite o destino para saber sobre documentação necessária:';
-                break;
-            case 'guia':
-                prompt = 'Digite o local para receber um guia personalizado:';
-                break;
-            case 'festivais':
-                prompt = 'Digite a cidade para conhecer os eventos:';
-                break;
-            case 'hospedagem':
-                prompt = 'Digite a cidade para recomendações de hospedagem:';
-                break;
-            case 'historias':
-                prompt = 'Digite a cidade para conhecer histórias interessantes:';
-                break;
-            case 'frases':
-                prompt = 'Digite o idioma para aprender frases úteis:';
-                break;
-            case 'seguranca':
-                prompt = 'Digite a cidade para dicas de segurança:';
-                break;
-            case 'hospitais':
-                prompt = 'Digite a cidade para encontrar hospitais:';
-                break;
-            case 'consulados':
-                prompt = 'Digite a cidade para informações sobre consulados:';
-                break;
-        }
-        
-        userInput.setAttribute('data-feature', feature);
-        userInput.placeholder = prompt;
-        userInput.value = '';
-        scrollToInput();
-    }
-
-    async function handleSend() {
-        const message = userInput.value.trim();
-        if (!message) return;
-
-        const feature = userInput.getAttribute('data-feature');
-        if (!feature) {
-            addMessage('Por favor, selecione uma função antes de enviar sua mensagem.');
-            return;
-        }
-
-        try {
-            addMessage(message, true);
-            userInput.value = '';
-
-            const response = await fetch(`${API_URL}/api/${feature}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ message })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                console.error('Error response:', data);
-                throw new Error(data.error || data.details || 'Erro ao processar sua mensagem');
-            }
-
-            addMessage(data.response);
-        } catch (error) {
-            console.error('Error:', error);
-            addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.');
-        }
-    }
-
-    document.querySelectorAll('.feature-button').forEach(button => {
-        button.addEventListener('click', () => {
-            handleFeatureClick(button.getAttribute('data-feature'));
-        });
-    });
-
-    sendButton.addEventListener('click', handleSend);
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleSend();
     });
 
     // Prevenir que o teclado virtual esconda o campo de input em dispositivos móveis
