@@ -1,25 +1,35 @@
-from flask import Flask, jsonify, request, session
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+import openai
 import os
-from datetime import datetime, timedelta
 import hmac
 import hashlib
-from os import environ
+from datetime import datetime, timedelta
+import logging
+
+# Configuração de logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Configuração do OpenAI
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 app = Flask(__name__, 
     static_url_path='',
     static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend')))
+
+CORS(app, supports_credentials=True)
+
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'sua_chave_secreta')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy()
-db.init_app(app)
-login_manager = LoginManager(app)
-CORS(app, supports_credentials=True)
+db = SQLAlchemy(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -50,14 +60,20 @@ def load_user(user_id):
 
 @app.route('/api/register', methods=['POST'])
 def register():
+    logger.info("Recebida solicitação de registro")
+    
     data = request.json
+    logger.info(f"Dados recebidos: {data}")
+    
     email = data.get('email')
     password = data.get('password')
 
     if not email or not password:
+        logger.error("Email e senha não fornecidos")
         return jsonify({'error': 'Email e senha são obrigatórios'}), 400
 
     if User.query.filter_by(email=email).first():
+        logger.error("Email já cadastrado")
         return jsonify({'error': 'Email já cadastrado'}), 400
 
     user = User(email=email)
@@ -66,6 +82,8 @@ def register():
     db.session.commit()
 
     login_user(user)
+    logger.info("Usuário registrado com sucesso")
+    
     return jsonify({
         'message': 'Usuário registrado com sucesso',
         'user_id': user.id,
@@ -74,13 +92,19 @@ def register():
 
 @app.route('/api/login', methods=['POST'])
 def login():
+    logger.info("Recebida solicitação de login")
+    
     data = request.json
+    logger.info(f"Dados recebidos: {data}")
+    
     email = data.get('email')
     password = data.get('password')
 
     user = User.query.filter_by(email=email).first()
     if user and user.check_password(password):
         login_user(user)
+        logger.info("Login realizado com sucesso")
+        
         return jsonify({
             'message': 'Login realizado com sucesso',
             'user_id': user.id,
@@ -88,31 +112,42 @@ def login():
             'subscription_active': user.check_subscription()
         })
 
+    logger.error("Email ou senha inválidos")
     return jsonify({'error': 'Email ou senha inválidos'}), 401
 
 @app.route('/api/logout')
 def logout():
     logout_user()
+    logger.info("Logout realizado com sucesso")
+    
     return jsonify({'message': 'Logout realizado com sucesso'})
 
 @app.route('/api/check_auth')
 def check_auth():
     if current_user.is_authenticated:
+        logger.info("Usuário autenticado")
+        
         return jsonify({
             'authenticated': True,
             'user_id': current_user.id,
             'email': current_user.email,
             'subscription_active': current_user.check_subscription()
         })
+    logger.info("Usuário não autenticado")
+    
     return jsonify({'authenticated': False})
 
 @app.route('/webhook/kiwify', methods=['POST'])
 def kiwify_webhook():
+    logger.info("Recebida solicitação de webhook Kiwify")
+    
     if not request.is_json:
+        logger.error("Solicitação não é JSON")
         return jsonify({'error': 'Content-Type must be application/json'}), 400
 
     signature = request.args.get('signature')
     if not signature:
+        logger.error("Assinatura não fornecida")
         return jsonify({'error': 'No signature provided'}), 401
 
     # Verificar a assinatura
@@ -124,14 +159,17 @@ def kiwify_webhook():
     ).hexdigest()
 
     if not hmac.compare_digest(signature, expected_signature):
+        logger.error("Assinatura inválida")
         return jsonify({'error': 'Invalid signature'}), 401
 
     data = request.json
     if not data:
+        logger.error("Dados não fornecidos")
         return jsonify({'error': 'No data provided'}), 400
 
     event_type = data.get('event')
     if not event_type:
+        logger.error("Tipo de evento não fornecido")
         return jsonify({'error': 'No event type provided'}), 400
 
     if event_type == 'order.paid':
@@ -141,20 +179,26 @@ def kiwify_webhook():
             customer_email = customer.get('email')
             
             if not customer_email:
+                logger.error("Email do cliente não fornecido")
                 return jsonify({'error': 'No customer email provided'}), 400
 
             user = User.query.filter_by(email=customer_email).first()
             if not user:
+                logger.error("Usuário não encontrado")
                 return jsonify({'error': 'User not found'}), 404
 
             user.subscription_active = True
             db.session.commit()
             
+            logger.info("Assinatura ativada com sucesso")
+            
             return jsonify({'success': True})
         except Exception as e:
-            app.logger.error(f"Error processing webhook: {str(e)}")
+            logger.error(f"Erro ao processar webhook: {str(e)}", exc_info=True)
             return jsonify({'error': 'Internal server error'}), 500
 
+    logger.info("Tipo de evento não suportado")
+    
     return jsonify({'success': True})
 
 from flask import Flask, request, jsonify, send_from_directory
@@ -196,9 +240,11 @@ def chatgpt_interaction(prompt, system_message=None):
             max_tokens=1000
         )
         
+        logger.info("Resposta gerada com sucesso")
+        
         return response.choices[0].message['content'].strip()
     except Exception as e:
-        logger.error(f"Error in chatgpt_interaction: {str(e)}")
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         raise
 
 # Variável global para contar usos por IP
@@ -221,6 +267,8 @@ def check_usage_limit():
 def check_usage():
     ip = get_client_ip()
     count = free_usage_count.get(ip, 0)
+    logger.info(f"Verificando uso para IP {ip}")
+    
     return jsonify({
         'uses_remaining': max(3 - count, 0),
         'requires_login': count >= 3
@@ -228,15 +276,20 @@ def check_usage():
 
 @app.route('/')
 def index():
+    logger.info("Recebida solicitação para página inicial")
+    
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/<path:path>')
 def static_files(path):
+    logger.info(f"Recebida solicitação para arquivo estático {path}")
+    
     return send_from_directory(app.static_folder, path)
 
 @app.route('/api/health')
 def health_check():
-    logger.info("Health check endpoint called")
+    logger.info("Recebida solicitação de verificação de saúde")
+    
     return jsonify({
         "status": "ok",
         "message": "Server is running",
@@ -249,14 +302,18 @@ def health_check():
 @app.route('/api/chat', methods=['POST'])
 @login_required
 def chat():
+    logger.info("Recebida solicitação de chat")
+    
     if check_usage_limit():
         if not current_user.is_authenticated:
+            logger.error("Usuário não autenticado")
             return jsonify({
                 'success': False,
                 'error': 'login_required',
                 'message': 'Você atingiu o limite de 3 usos gratuitos. Por favor, faça login para continuar.'
             })
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'success': False,
                 'error': 'subscription_required',
@@ -268,17 +325,23 @@ def chat():
         user_id = current_user.id
         user_message = data.get('message')
         response = chatgpt_interaction(user_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/roteiro', methods=['POST'])
 @login_required
 def get_roteiro():
+    logger.info("Recebida solicitação de roteiro")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -298,17 +361,23 @@ def get_roteiro():
         
         prompt = f"Crie um roteiro detalhado para {dias} dias em {destino}, incluindo atrações turísticas, preços estimados e horários sugeridos."
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/precos', methods=['POST'])
 @login_required
 def get_precos():
+    logger.info("Recebida solicitação de preços")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -326,17 +395,23 @@ def get_precos():
         
         prompt = f"Quanto custa uma viagem para {destino} em um estilo de preço intermediário em reais?"
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/checklist', methods=['POST'])
 @login_required
 def get_checklist():
+    logger.info("Recebida solicitação de checklist")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -354,17 +429,23 @@ def get_checklist():
         
         prompt = f"Quais itens devo levar em uma viagem para {destino}?"
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/gastronomia', methods=['POST'])
 @login_required
 def get_gastronomia():
+    logger.info("Recebida solicitação de gastronomia")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -383,17 +464,23 @@ def get_gastronomia():
         
         prompt = f"Quais são os melhores restaurantes em {destino} para um orçamento {tipo}? Liste os pratos típicos e preços médios em reais."
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/documentacao', methods=['POST'])
 @login_required
 def get_documentacao():
+    logger.info("Recebida solicitação de documentação")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -411,17 +498,23 @@ def get_documentacao():
         
         prompt = f"Quais os requisitos de visto para uma pessoa de {origem} visitar {destino}?"
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/trem', methods=['POST'])
 @login_required
 def get_trem():
+    logger.info("Recebida solicitação de trem")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -440,17 +533,23 @@ def get_trem():
         
         prompt = f"Crie um roteiro por {destinos} de trem com a rota mais viável, com 2 dias em cada cidade, com tempo de viagem entre as cidades e o nome das estações. No final, fale qual passe de trem utilizar e preço médio em reais."
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/guia', methods=['POST'])
 @login_required
 def get_guia():
+    logger.info("Recebida solicitação de guia")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -470,17 +569,23 @@ def get_guia():
         
         prompt = f"Quais passeios posso fazer em {local} em {tempo}?"
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/festivais', methods=['POST'])
 @login_required
 def get_festivais():
+    logger.info("Recebida solicitação de festivais")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -497,17 +602,23 @@ def get_festivais():
         
         prompt = f"Quais são os principais festivais e eventos acontecendo em {cidade} nos próximos meses?"
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/hospedagem', methods=['POST'])
 @login_required
 def get_hospedagem():
+    logger.info("Recebida solicitação de hospedagem")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -524,17 +635,23 @@ def get_hospedagem():
         
         prompt = f"Quais são as melhores áreas para se hospedar em {cidade}, considerando diferentes perfis de viagem?"
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/historias', methods=['POST'])
 @login_required
 def get_historias():
+    logger.info("Recebida solicitação de histórias")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -551,17 +668,23 @@ def get_historias():
         
         prompt = f"Conte histórias e curiosidades interessantes sobre {cidade}."
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/frases', methods=['POST'])
 @login_required
 def get_frases():
+    logger.info("Recebida solicitação de frases")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -578,17 +701,23 @@ def get_frases():
         
         prompt = f"Quais são as frases mais úteis para um turista em {idioma}?"
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/seguranca', methods=['POST'])
 @login_required
 def get_seguranca():
+    logger.info("Recebida solicitação de segurança")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -605,17 +734,23 @@ def get_seguranca():
         
         prompt = f"Quais são as principais dicas de segurança para turistas em {cidade}?"
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/hospitais', methods=['POST'])
 @login_required
 def get_hospitais():
+    logger.info("Recebida solicitação de hospitais")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -632,17 +767,23 @@ def get_hospitais():
         
         prompt = f"Quais são os hospitais mais próximos e bem avaliados em {cidade}?"
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/consulados', methods=['POST'])
 @login_required
 def get_consulados():
+    logger.info("Recebida solicitação de consulados")
+    
     try:
         data = request.json
         user_id = current_user.id
         if not current_user.check_subscription():
+            logger.error("Assinatura não ativa")
             return jsonify({
                 'subscription_required': True,
                 'message': 'Assinatura necessária'
@@ -659,67 +800,108 @@ def get_consulados():
         
         prompt = f"Onde fica o consulado Brasileiro em {cidade}? Me informa detalhes de como entrar em contato e endereço e como agir em caso de problemas."
         response = chatgpt_interaction(prompt, system_message)
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({"success": True, "response": response})
     except Exception as e:
+        logger.error(f"Erro na interação com o ChatGPT: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/roteiro', methods=['POST'])
 def roteiro():
+    logger.info("Recebida solicitação de roteiro")
+    
     if not request.is_json:
+        logger.error("Solicitação não é JSON")
         return jsonify({'error': 'Content-Type must be application/json'}), 400
 
-    message = request.json.get('message')
+    data = request.get_json()
+    logger.info(f"Dados recebidos: {data}")
+    
+    message = data.get('message')
     if not message:
+        logger.error("Mensagem não fornecida")
         return jsonify({'error': 'Message is required'}), 400
 
     try:
+        # Extrair destino e dias da mensagem
+        parts = message.lower().split()
+        destino = parts[0]
+        dias = next((p for p in parts if p.isdigit()), '3')
+        
+        logger.info(f"Processando roteiro para {destino} por {dias} dias")
+
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "Você é um assistente de viagem especializado em criar roteiros detalhados."},
-                {"role": "user", "content": f"Crie um roteiro detalhado para {message}"}
+                {"role": "user", "content": f"Crie um roteiro detalhado para {destino} em {dias} dias, incluindo atrações, horários e dicas práticas."}
             ]
         )
+        
+        result = response.choices[0].message['content']
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({
             'success': True,
-            'response': response.choices[0].message['content']
+            'response': result
         })
     except Exception as e:
-        app.logger.error(f"Error calling OpenAI: {str(e)}")
-        return jsonify({'error': 'Failed to generate response'}), 500
+        logger.error(f"Erro ao gerar roteiro: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to generate response', 'details': str(e)}), 500
 
-@app.route('/api/trem', methods=['POST'])
-def trem():
+@app.route('/api/festivais', methods=['POST'])
+def festivais():
+    logger.info("Recebida solicitação de festivais")
+    
     if not request.is_json:
+        logger.error("Solicitação não é JSON")
         return jsonify({'error': 'Content-Type must be application/json'}), 400
 
-    message = request.json.get('message')
+    data = request.get_json()
+    logger.info(f"Dados recebidos: {data}")
+    
+    message = data.get('message')
     if not message:
+        logger.error("Mensagem não fornecida")
         return jsonify({'error': 'Message is required'}), 400
 
     try:
+        logger.info(f"Processando festivais para {message}")
+        
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Você é um especialista em viagens de trem pela Europa."},
-                {"role": "user", "content": f"Forneça informações detalhadas sobre como viajar de trem entre {message}"}
+                {"role": "system", "content": "Você é um especialista em eventos culturais e festivais ao redor do mundo."},
+                {"role": "user", "content": f"Liste os principais festivais, eventos culturais e celebrações que acontecem em {message} ao longo do ano. Inclua datas aproximadas, descrições e dicas para participar."}
             ]
         )
+        
+        result = response.choices[0].message['content']
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({
             'success': True,
-            'response': response.choices[0].message['content']
+            'response': result
         })
     except Exception as e:
-        app.logger.error(f"Error calling OpenAI: {str(e)}")
-        return jsonify({'error': 'Failed to generate response'}), 500
+        logger.error(f"Erro ao buscar festivais: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to generate response', 'details': str(e)}), 500
 
 @app.route('/api/<feature>', methods=['POST'])
 def handle_feature(feature):
+    logger.info(f"Recebida solicitação de recurso {feature}")
+    
     if not request.is_json:
+        logger.error("Solicitação não é JSON")
         return jsonify({'error': 'Content-Type must be application/json'}), 400
 
-    message = request.json.get('message')
+    data = request.get_json()
+    logger.info(f"Dados recebidos: {data}")
+    
+    message = data.get('message')
     if not message:
+        logger.error("Mensagem não fornecida")
         return jsonify({'error': 'Message is required'}), 400
 
     # Mapeia cada feature para sua prompt específica
@@ -739,6 +921,7 @@ def handle_feature(feature):
     }
 
     if feature not in feature_prompts:
+        logger.error("Recurso não suportado")
         return jsonify({'error': 'Invalid feature'}), 400
 
     try:
@@ -749,13 +932,17 @@ def handle_feature(feature):
                 {"role": "user", "content": feature_prompts[feature]}
             ]
         )
+        
+        result = response.choices[0].message['content']
+        logger.info("Resposta gerada com sucesso")
+        
         return jsonify({
             'success': True,
-            'response': response.choices[0].message['content']
+            'response': result
         })
     except Exception as e:
-        app.logger.error(f"Error calling OpenAI: {str(e)}")
-        return jsonify({'error': 'Failed to generate response'}), 500
+        logger.error(f"Erro ao chamar o OpenAI: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to generate response', 'details': str(e)}), 500
 
 def record_usage(user_id, endpoint):
     if user_id:

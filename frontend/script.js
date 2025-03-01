@@ -503,136 +503,114 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    checkAuthStatus();
-    updateUsageUI();
-});
-
-// Configuração da API
-const API_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:5000'
-    : window.location.origin;
-
-// Elementos DOM
-const userInput = document.getElementById('userInput');
-const sendButton = document.getElementById('sendButton');
-const chatHistory = document.getElementById('chatHistory');
-
-// Funções de UI
-function scrollToInput() {
-    userInput.scrollIntoView({ behavior: 'smooth' });
-}
-
-function addMessage(content, isUser = false) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
-    messageDiv.textContent = content;
-    chatHistory.appendChild(messageDiv);
-    chatHistory.scrollTop = chatHistory.scrollHeight;
-}
-
-async function handleFeatureClick(feature) {
-    let prompt;
-    switch (feature) {
-        case 'roteiro':
-            prompt = 'Digite o destino e quantidade de dias (ex: "Paris 5 dias"):';
-            break;
-        case 'trem':
-            prompt = 'Digite as cidades que deseja visitar de trem:';
-            break;
-        case 'precos':
-            prompt = 'Digite o destino para saber os custos:';
-            break;
-        case 'checklist':
-            prompt = 'Digite o destino para receber uma lista do que levar:';
-            break;
-        case 'gastronomia':
-            prompt = 'Digite o destino para conhecer a gastronomia local:';
-            break;
-        case 'documentacao':
-            prompt = 'Digite o destino para saber sobre documentação necessária:';
-            break;
-        case 'guia':
-            prompt = 'Digite o local para receber um guia personalizado:';
-            break;
-        case 'festivais':
-            prompt = 'Digite a cidade para conhecer os eventos:';
-            break;
-        case 'hospedagem':
-            prompt = 'Digite a cidade para recomendações de hospedagem:';
-            break;
-        case 'historias':
-            prompt = 'Digite a cidade para conhecer histórias interessantes:';
-            break;
-        case 'frases':
-            prompt = 'Digite o idioma para aprender frases úteis:';
-            break;
-        case 'seguranca':
-            prompt = 'Digite a cidade para dicas de segurança:';
-            break;
-        case 'hospitais':
-            prompt = 'Digite a cidade para encontrar hospitais:';
-            break;
-        case 'consulados':
-            prompt = 'Digite a cidade para informações sobre consulados:';
-            break;
-    }
-    
-    userInput.setAttribute('data-feature', feature);
-    userInput.placeholder = prompt;
-    userInput.value = '';
-    userInput.focus();
-    scrollToInput();
-}
-
-async function handleSend() {
-    const message = userInput.value.trim();
-    if (!message) return;
-
-    const feature = userInput.getAttribute('data-feature');
-    if (!feature) {
-        addMessage('Por favor, selecione uma função antes de enviar sua mensagem.');
-        return;
+    function scrollToInput() {
+        setTimeout(() => {
+            userInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
     }
 
-    try {
-        addMessage(message, true);
+    async function handleFeatureClick(feature) {
+        let prompt;
+        switch (feature) {
+            case 'roteiro':
+                prompt = 'Digite o destino e quantidade de dias (ex: "Paris 5 dias"):';
+                break;
+            case 'trem':
+                prompt = 'Digite as cidades que deseja visitar de trem:';
+                break;
+            case 'precos':
+                prompt = 'Digite o destino para saber os custos:';
+                break;
+            case 'checklist':
+                prompt = 'Digite o destino para receber uma lista do que levar:';
+                break;
+            case 'gastronomia':
+                prompt = 'Digite o destino para conhecer a gastronomia local:';
+                break;
+            case 'documentacao':
+                prompt = 'Digite o destino para saber sobre documentação necessária:';
+                break;
+            case 'guia':
+                prompt = 'Digite o local para receber um guia personalizado:';
+                break;
+            case 'festivais':
+                prompt = 'Digite a cidade para conhecer os eventos:';
+                break;
+            case 'hospedagem':
+                prompt = 'Digite a cidade para recomendações de hospedagem:';
+                break;
+            case 'historias':
+                prompt = 'Digite a cidade para conhecer histórias interessantes:';
+                break;
+            case 'frases':
+                prompt = 'Digite o idioma para aprender frases úteis:';
+                break;
+            case 'seguranca':
+                prompt = 'Digite a cidade para dicas de segurança:';
+                break;
+            case 'hospitais':
+                prompt = 'Digite a cidade para encontrar hospitais:';
+                break;
+            case 'consulados':
+                prompt = 'Digite a cidade para informações sobre consulados:';
+                break;
+        }
+        
+        userInput.setAttribute('data-feature', feature);
+        userInput.placeholder = prompt;
         userInput.value = '';
+        userInput.focus();
+        scrollToInput();
+    }
 
-        const response = await fetch(`${API_URL}/api/${feature}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify({ message })
-        });
+    async function handleSend() {
+        const message = userInput.value.trim();
+        if (!message) return;
 
-        const data = await response.json();
-
-        if (response.status === 401) {
-            showLoginModal();
+        const feature = userInput.getAttribute('data-feature');
+        if (!feature) {
+            addMessage('Por favor, selecione uma função antes de enviar sua mensagem.');
             return;
         }
 
-        if (!response.ok) {
-            throw new Error(data.error || 'Erro ao processar sua mensagem');
+        try {
+            addMessage(message, true);
+            userInput.value = '';
+
+            const response = await fetch(`${API_URL}/api/${feature}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ message })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                console.error('Error response:', data);
+                throw new Error(data.error || data.details || 'Erro ao processar sua mensagem');
+            }
+
+            addMessage(data.response);
+        } catch (error) {
+            console.error('Error:', error);
+            addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.');
         }
-
-        addMessage(data.response);
-    } catch (error) {
-        console.error('Error:', error);
-        addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.');
     }
-}
 
-// Event Listeners
-document.querySelectorAll('.feature-button').forEach(button => {
-    button.addEventListener('click', () => {
-        handleFeatureClick(button.getAttribute('data-feature'));
+    document.querySelectorAll('.feature-button').forEach(button => {
+        button.addEventListener('click', () => {
+            handleFeatureClick(button.getAttribute('data-feature'));
+        });
     });
-});
 
-sendButton.addEventListener('click', handleSend);
-userInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleSend();
+    sendButton.addEventListener('click', handleSend);
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSend();
+    });
+
+    checkAuthStatus();
+    updateUsageUI();
 });
