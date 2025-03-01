@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Verificar assinatura antes de cada requisição
     async function checkSubscription() {
         if (!currentUser) {
-            showLoginModal();
+            showRegisterModal();
             return false;
         }
         
@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (data.requires_login) {
                 if (!currentUser) {
-                    showLoginModal();
+                    showRegisterModal();
                     return false;
                 }
                 if (!currentUser.subscription_active) {
@@ -505,4 +505,215 @@ document.addEventListener('DOMContentLoaded', () => {
 
     checkAuthStatus();
     updateUsageUI();
+});
+
+// Configuração da API
+const API_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:5000'
+    : window.location.origin;
+
+// Estado do usuário
+let currentUser = null;
+
+// Elementos DOM
+const loginButton = document.getElementById('loginButton');
+const registerButton = document.getElementById('registerButton');
+const logoutButton = document.getElementById('logoutButton');
+const userInfo = document.getElementById('userInfo');
+const userEmail = document.getElementById('userEmail');
+const loginModal = document.getElementById('loginModal');
+const registerModal = document.getElementById('registerModal');
+const loginForm = document.getElementById('loginForm');
+const registerForm = document.getElementById('registerForm');
+const userInput = document.getElementById('userInput');
+const sendButton = document.getElementById('sendButton');
+const chatHistory = document.getElementById('chatHistory');
+
+// Funções de autenticação
+async function checkUsageLimit() {
+    try {
+        const response = await fetch(`${API_URL}/api/check_usage`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.requires_login) {
+            showRegisterModal(); // Mostrar registro em vez de login após os 3 usos
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error('Erro ao verificar limite de uso:', error);
+        return true;
+    }
+}
+
+async function handleFeatureClick(feature) {
+    let prompt;
+    switch (feature) {
+        case 'roteiro':
+            prompt = 'Digite o destino e quantidade de dias (ex: "Paris 5 dias"):';
+            break;
+        case 'trem':
+            prompt = 'Digite as cidades que deseja visitar de trem:';
+            break;
+        case 'precos':
+            prompt = 'Digite o destino para saber os custos:';
+            break;
+        case 'checklist':
+            prompt = 'Digite o destino para receber uma lista do que levar:';
+            break;
+        case 'gastronomia':
+            prompt = 'Digite o destino para conhecer a gastronomia local:';
+            break;
+        case 'documentacao':
+            prompt = 'Digite o destino para saber sobre documentação necessária:';
+            break;
+        case 'guia':
+            prompt = 'Digite o local para receber um guia personalizado:';
+            break;
+        case 'festivais':
+            prompt = 'Digite a cidade para conhecer os eventos:';
+            break;
+        case 'hospedagem':
+            prompt = 'Digite a cidade para recomendações de hospedagem:';
+            break;
+        case 'historias':
+            prompt = 'Digite a cidade para conhecer histórias interessantes:';
+            break;
+        case 'frases':
+            prompt = 'Digite o idioma para aprender frases úteis:';
+            break;
+        case 'seguranca':
+            prompt = 'Digite a cidade para dicas de segurança:';
+            break;
+        case 'hospitais':
+            prompt = 'Digite a cidade para encontrar hospitais:';
+            break;
+        case 'consulados':
+            prompt = 'Digite a cidade para informações sobre consulados:';
+            break;
+    }
+    
+    userInput.setAttribute('data-feature', feature);
+    userInput.placeholder = prompt;
+    userInput.value = '';
+    userInput.focus();
+}
+
+async function handleSend() {
+    if (!userInput.value.trim()) return;
+
+    const feature = userInput.getAttribute('data-feature');
+    const message = userInput.value.trim();
+
+    if (!await checkUsageLimit()) {
+        return;
+    }
+
+    addMessage(message, true);
+    userInput.value = '';
+
+    try {
+        let response;
+        switch (feature) {
+            case 'roteiro':
+                const [destino, ...diasArray] = message.split(' ');
+                const dias = diasArray.join(' ').replace('dias', '').trim();
+                response = await fetch(`${API_URL}/api/roteiro`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ destino, dias: dias || '5' })
+                });
+                break;
+            // ... outros casos ...
+        }
+
+        const data = await response.json();
+        
+        if (data.error === 'login_required') {
+            showRegisterModal();
+            return;
+        }
+        
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao processar sua mensagem');
+        }
+
+        addMessage(data.response);
+    } catch (error) {
+        console.error('Error:', error);
+        addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.');
+    }
+}
+
+// Funções UI
+function showLoginModal() {
+    loginModal.style.display = 'block';
+}
+
+function hideLoginModal() {
+    loginModal.style.display = 'none';
+    loginForm.reset();
+}
+
+function showRegisterModal() {
+    registerModal.style.display = 'block';
+}
+
+function hideRegisterModal() {
+    registerModal.style.display = 'none';
+    registerForm.reset();
+}
+
+function addMessage(content, isUser = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
+    messageDiv.textContent = content;
+    chatHistory.appendChild(messageDiv);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
+// Event Listeners
+document.querySelectorAll('.close').forEach(closeButton => {
+    closeButton.addEventListener('click', () => {
+        hideLoginModal();
+        hideRegisterModal();
+    });
+});
+
+loginButton.addEventListener('click', showLoginModal);
+registerButton.addEventListener('click', showRegisterModal);
+logoutButton.addEventListener('click', logout);
+
+loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    login(email, password);
+});
+
+registerForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = document.getElementById('registerEmail').value;
+    const password = document.getElementById('registerPassword').value;
+    register(email, password);
+});
+
+sendButton.addEventListener('click', handleSend);
+userInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleSend();
+});
+
+document.querySelectorAll('.feature-button').forEach(button => {
+    button.addEventListener('click', () => {
+        handleFeatureClick(button.getAttribute('data-feature'));
+    });
+});
+
+// Fechar modais ao clicar fora
+window.addEventListener('click', (e) => {
+    if (e.target === loginModal) hideLoginModal();
+    if (e.target === registerModal) hideRegisterModal();
 });
