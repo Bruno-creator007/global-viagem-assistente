@@ -9,7 +9,9 @@ import hmac
 import hashlib
 from os import environ
 
-app = Flask(__name__, static_folder='../frontend', static_url_path='')
+app = Flask(__name__, 
+    static_url_path='',
+    static_folder='../frontend')
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'sua_chave_secreta')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -104,47 +106,45 @@ def check_auth():
         })
     return jsonify({'authenticated': False})
 
-def verify_kiwify_signature(payload, signature):
-    """Verifica a assinatura do webhook da Kiwify"""
-    if not signature:
-        return False
-    
-    webhook_secret = environ.get('KIWIFY_WEBHOOK_SECRET', 'yfpccex6uk4')
-    expected_signature = hmac.new(
-        webhook_secret.encode('utf-8'),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
-    
-    return hmac.compare_digest(expected_signature, signature)
-
 @app.route('/webhook/kiwify', methods=['POST'])
 def kiwify_webhook():
-    # Verificar a assinatura do webhook
-    payload = request.get_data()
-    signature = request.headers.get('X-Kiwify-Signature')
-    
-    if not verify_kiwify_signature(payload, signature):
+    signature = request.args.get('signature')
+    if not signature:
+        return jsonify({'error': 'No signature provided'}), 401
+
+    # Verificar a assinatura
+    expected_signature = hmac.new(
+        environ.get('KIWIFY_WEBHOOK_SECRET', 'yfpccex6uk4').encode(),
+        request.get_data(),
+        hashlib.sha1
+    ).hexdigest()
+
+    if not hmac.compare_digest(signature, expected_signature):
         return jsonify({'error': 'Invalid signature'}), 401
-    
+
     data = request.json
-    
-    if data.get('event') == 'order.paid':
-        # Extrair email do cliente do payload
-        customer_email = data.get('customer', {}).get('email')
-        if customer_email:
-            user = User.query.filter_by(email=customer_email).first()
-            if user:
-                user.subscription_active = True
-                user.subscription_expiry = datetime.utcnow() + timedelta(days=30)
-                db.session.commit()
-                
-                # Log para debug
-                print(f"Assinatura ativada para o usuário: {customer_email}")
-            else:
-                print(f"Usuário não encontrado: {customer_email}")
-    
-    return jsonify({'status': 'success'})
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    event_type = data.get('event')
+    if not event_type:
+        return jsonify({'error': 'No event type provided'}), 400
+
+    if event_type == 'order.paid':
+        order = data.get('order', {})
+        customer_email = order.get('customer', {}).get('email')
+        
+        if not customer_email:
+            return jsonify({'error': 'No customer email provided'}), 400
+
+        user = User.query.filter_by(email=customer_email).first()
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        user.subscription_active = True
+        db.session.commit()
+
+    return jsonify({'success': True})
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -216,7 +216,7 @@ def check_usage():
     })
 
 @app.route('/')
-def home():
+def index():
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/<path:path>')
