@@ -3,11 +3,27 @@ services:
     name: global-viagem-assistente
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn backend.app:app --timeout 120 --workers 1 --threads 8
+    startCommand: gunicorn wsgi:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.11
-      - key: SECRET_KEY
-        generateValue: true
+        value: 3.9.0
+      - key: FLASK_APP
+        value: app.py
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: KIWIFY_WEBHOOK_TOKEN
+        value: yfpccex6uk4
+      - key: KIWIFY_PRODUCT_URL
+        value: https://pay.kiwify.com.br/Ug7fYhB
+      - key: KIWIFY_WEBHOOK_URL
+        value: https://globalviagem.com/webhook/kiwify

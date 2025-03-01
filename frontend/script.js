@@ -1,8 +1,189 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Elementos existentes
     const userInput = document.getElementById('userInput');
     const sendButton = document.getElementById('sendButton');
     const chatHistory = document.getElementById('chatHistory');
     const featureButtons = document.querySelectorAll('.feature-btn');
+
+    // Novos elementos de autenticação
+    const loginBtn = document.getElementById('loginBtn');
+    const registerBtn = document.getElementById('registerBtn');
+    const userDashboardBtn = document.getElementById('userDashboardBtn');
+    const loginModal = document.getElementById('loginModal');
+    const registerModal = document.getElementById('registerModal');
+    const userDashboardModal = document.getElementById('userDashboardModal');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const upgradeBtn = document.getElementById('upgradeBtn');
+
+    // API URL configuration
+    const API_URL = window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000'
+        : window.location.origin;
+
+    // Estado do usuário
+    let userState = {
+        authenticated: false,
+        subscriptionActive: false,
+        freeUsesRemaining: 3
+    };
+
+    // Funções de autenticação
+    async function checkAuth() {
+        try {
+            const response = await fetch(`${API_URL}/api/check_auth`, {
+                credentials: 'include'
+            });
+            const data = await response.json();
+            
+            updateUserState(data);
+        } catch (error) {
+            console.error('Erro ao verificar autenticação:', error);
+        }
+    }
+
+    function updateUserState(data) {
+        userState = {
+            authenticated: data.authenticated,
+            subscriptionActive: data.subscription_active,
+            freeUsesRemaining: data.free_uses_remaining
+        };
+
+        // Atualiza UI
+        loginBtn.style.display = data.authenticated ? 'none' : 'block';
+        registerBtn.style.display = data.authenticated ? 'none' : 'block';
+        userDashboardBtn.style.display = data.authenticated ? 'block' : 'none';
+
+        if (data.authenticated) {
+            document.getElementById('subscriptionStatus').textContent = 
+                data.subscription_active ? 'Assinatura ativa' : 'Assinatura inativa';
+            document.getElementById('freeUsesRemaining').textContent = 
+                `Usos gratuitos restantes: ${data.free_uses_remaining}`;
+        }
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+
+        try {
+            const response = await fetch(`${API_URL}/api/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                updateUserState({
+                    authenticated: true,
+                    subscription_active: data.subscription_active,
+                    free_uses_remaining: 3
+                });
+                closeModal(loginModal);
+                loginForm.reset();
+            } else {
+                alert(data.error);
+            }
+        } catch (error) {
+            console.error('Erro ao fazer login:', error);
+            alert('Erro ao fazer login. Tente novamente.');
+        }
+    }
+
+    async function handleRegister(e) {
+        e.preventDefault();
+        const email = document.getElementById('registerEmail').value;
+        const password = document.getElementById('registerPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (password !== confirmPassword) {
+            alert('As senhas não coincidem');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/api/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                updateUserState({
+                    authenticated: true,
+                    subscription_active: false,
+                    free_uses_remaining: 3
+                });
+                closeModal(registerModal);
+                registerForm.reset();
+                window.location.href = 'https://kiwify.com.br/seu-produto'; // Substitua pelo link real
+            } else {
+                alert(data.error);
+            }
+        } catch (error) {
+            console.error('Erro ao registrar:', error);
+            alert('Erro ao criar conta. Tente novamente.');
+        }
+    }
+
+    async function handleLogout() {
+        try {
+            await fetch(`${API_URL}/api/logout`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            
+            updateUserState({
+                authenticated: false,
+                subscription_active: false,
+                free_uses_remaining: 3
+            });
+            
+            closeModal(userDashboardModal);
+        } catch (error) {
+            console.error('Erro ao fazer logout:', error);
+        }
+    }
+
+    // Funções de modal
+    function openModal(modal) {
+        modal.style.display = 'block';
+    }
+
+    function closeModal(modal) {
+        modal.style.display = 'none';
+    }
+
+    // Event listeners para autenticação
+    loginBtn.addEventListener('click', () => openModal(loginModal));
+    registerBtn.addEventListener('click', () => openModal(registerModal));
+    userDashboardBtn.addEventListener('click', () => openModal(userDashboardModal));
+    loginForm.addEventListener('submit', handleLogin);
+    registerForm.addEventListener('submit', handleRegister);
+    logoutBtn.addEventListener('click', handleLogout);
+    upgradeBtn.addEventListener('click', () => {
+        window.location.href = 'https://pay.kiwify.com.br/Ug7fYhB';
+    });
+
+    // Fecha modais quando clica no X
+    document.querySelectorAll('.close').forEach(closeBtn => {
+        closeBtn.addEventListener('click', () => {
+            closeModal(closeBtn.closest('.modal'));
+        });
+    });
+
+    // Fecha modais quando clica fora
+    window.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal')) {
+            closeModal(e.target);
+        }
+    });
 
     // API URL configuration
     const API_URL = window.location.hostname === 'localhost' 
@@ -112,135 +293,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const message = userInput.value.trim();
         if (!message) return;
 
+        // Verifica acesso
+        if (!userState.authenticated && userState.freeUsesRemaining === 0) {
+            openModal(registerModal);
+            return;
+        }
+
         const feature = userInput.getAttribute('data-feature') || 'chat';
         addMessage(message, true);
         userInput.value = '';
 
-        let response;
         try {
-            const requestBody = { message };
-
-            // Add specific parameters based on the feature
-            switch (feature) {
-                case 'roteiro':
-                    const [destino, dias] = message.split(' por ');
-                    response = await fetch(`${API_URL}/api/roteiro`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ destino, dias: dias || '5' })
-                    });
-                    break;
-                case 'trem':
-                    response = await fetch(`${API_URL}/api/trem`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ destinos: message })
-                    });
-                    break;
-                case 'precos':
-                    response = await fetch(`${API_URL}/api/precos`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ destino: message })
-                    });
-                    break;
-                case 'checklist':
-                    response = await fetch(`${API_URL}/api/checklist`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ destino: message })
-                    });
-                    break;
-                case 'gastronomia':
-                    response = await fetch(`${API_URL}/api/gastronomia`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ destino: message })
-                    });
-                    break;
-                case 'documentacao':
-                    response = await fetch(`${API_URL}/api/documentacao`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ destino: message, origem: 'Brasil' })
-                    });
-                    break;
-                case 'guia':
-                    response = await fetch(`${API_URL}/api/guia`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ local: message })
-                    });
-                    break;
-                case 'festivais':
-                    response = await fetch(`${API_URL}/api/festivais`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                case 'hospedagem':
-                    response = await fetch(`${API_URL}/api/hospedagem`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                case 'historias':
-                    response = await fetch(`${API_URL}/api/historias`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                case 'frases':
-                    response = await fetch(`${API_URL}/api/frases`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ idioma: message })
-                    });
-                    break;
-                case 'seguranca':
-                    response = await fetch(`${API_URL}/api/seguranca`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                case 'hospitais':
-                    response = await fetch(`${API_URL}/api/hospitais`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                case 'consulados':
-                    response = await fetch(`${API_URL}/api/consulados`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cidade: message })
-                    });
-                    break;
-                default:
-                    response = await fetch(`${API_URL}/api/chat`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message })
-                    });
-            }
+            const response = await fetch(`${API_URL}/api/feature/${feature}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ message })
+            });
 
             const data = await response.json();
-            if (data.success) {
-                addMessage(data.response, false);
-            } else {
+            
+            if (!data.success) {
+                if (data.error === 'Faça login para continuar') {
+                    openModal(loginModal);
+                    return;
+                }
                 throw new Error(data.error);
             }
+
+            addMessage(data.response);
+
         } catch (error) {
             console.error('Error:', error);
-            addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.', false);
+            addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.');
         }
-
-        userInput.removeAttribute('data-feature');
     }
 
     sendButton.addEventListener('click', handleSend);
@@ -256,4 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     });
+
+    // Verifica autenticação ao carregar a página
+    checkAuth();
 });

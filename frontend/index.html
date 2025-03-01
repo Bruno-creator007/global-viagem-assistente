@@ -15,6 +15,13 @@
                 <img src="images/logo.svg" alt="Global Viagem Assistente Logo" class="logo">
             </div>
             <p>Seu assistente de viagens inteligente 🌐 ✈️</p>
+            <div class="auth-buttons">
+                <button id="loginBtn" class="auth-btn">Entrar</button>
+                <button id="registerBtn" class="auth-btn">Cadastrar</button>
+                <button id="userDashboardBtn" class="auth-btn" style="display: none;">
+                    <i class="fas fa-user"></i>
+                </button>
+            </div>
         </header>
 
         <nav class="features-nav">
@@ -93,6 +100,71 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Modal de Login -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Entrar</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email:</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Senha:</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="btn-primary">Entrar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Registro -->
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Criar Conta</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="registerEmail">Email:</label>
+                    <input type="email" id="registerEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Senha:</label>
+                    <input type="password" id="registerPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirmar Senha:</label>
+                    <input type="password" id="confirmPassword" required>
+                </div>
+                <button type="submit" class="btn-primary">Cadastrar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal do Dashboard do Usuário -->
+    <div id="userDashboardModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Minha Conta</h2>
+            <div class="dashboard-content">
+                <div class="subscription-info">
+                    <h3>Status da Assinatura</h3>
+                    <p id="subscriptionStatus"></p>
+                    <p id="freeUsesRemaining"></p>
+                </div>
+                <div class="usage-history">
+                    <h3>Histórico de Uso</h3>
+                    <div id="usageList"></div>
+                </div>
+                <div class="dashboard-actions">
+                    <button id="upgradeBtn" class="btn-primary">Fazer Upgrade</button>
+                    <button id="logoutBtn" class="btn-secondary">Sair</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>

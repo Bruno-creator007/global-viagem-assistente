@@ -212,3 +212,96 @@ def usage():
                          avg_response_time=avg_response_time,
                          function_usage=function_usage,
                          recent_usage=recent_usage)
+
+def admin_required(f):
+    @login_required
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_admin:
+            return jsonify({'error': 'Acesso não autorizado'}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+@admin_bp.route('/admin_dashboard')
+@admin_required
+def admin_dashboard():
+    return render_template('admin/admin_dashboard.html')
+
+@admin_bp.route('/api/stats')
+@admin_required
+def get_stats():
+    total_users = Admin.query.count()
+    active_subscriptions = Admin.query.filter(
+        Admin.subscription_end >= datetime.utcnow()
+    ).count()
+    
+    # Estatísticas de uso por feature
+    usage_stats = db.session.query(
+        Usage.function,
+        db.func.count(Usage.id)
+    ).group_by(Usage.function).all()
+    
+    # Histórico de pagamentos
+    recent_payments = Usage.query.filter_by(
+        success=True
+    ).order_by(Usage.timestamp.desc()).limit(10).all()
+    
+    return jsonify({
+        'total_users': total_users,
+        'active_subscriptions': active_subscriptions,
+        'usage_stats': dict(usage_stats),
+        'recent_payments': [{
+            'user_email': payment.user_id,
+            'amount': payment.response_time,
+            'date': payment.timestamp.isoformat()
+        } for payment in recent_payments]
+    })
+
+@admin_bp.route('/api/users')
+@admin_required
+def get_users():
+    users = Admin.query.all()
+    return jsonify([{
+        'id': user.id,
+        'email': user.username,
+        'subscription_active': user.subscription_end >= datetime.utcnow(),
+        'subscription_end': user.subscription_end.isoformat() if user.subscription_end else None,
+        'free_uses_remaining': 0,
+        'created_at': user.created_at.isoformat(),
+        'last_login': user.last_login.isoformat() if user.last_login else None
+    } for user in users])
+
+@admin_bp.route('/api/user/<int:user_id>/subscription', methods=['POST'])
+@admin_required
+def update_user_subscription(user_id):
+    user = Admin.query.get_or_404(user_id)
+    data = request.get_json()
+    
+    if data.get('action') == 'activate':
+        duration = data.get('duration', 30)
+        user.subscription_end = datetime.utcnow() + datetime.timedelta(days=duration)
+        message = f'Assinatura ativada por {duration} dias'
+    elif data.get('action') == 'deactivate':
+        user.subscription_end = None
+        message = 'Assinatura desativada'
+    else:
+        return jsonify({'error': 'Ação inválida'}), 400
+    
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': message})
+
+@admin_bp.route('/api/user/<int:user_id>/usage')
+@admin_required
+def get_user_usage(user_id):
+    user = Admin.query.get_or_404(user_id)
+    usage = Usage.query.filter_by(user_id=user.id)\
+        .order_by(Usage.timestamp.desc())\
+        .limit(50)\
+        .all()
+    
+    return jsonify([{
+        'feature': item.function,
+        'timestamp': item.timestamp.isoformat(),
+        'query': item.query,
+        'response': item.response
+    } for item in usage])
