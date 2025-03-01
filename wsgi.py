@@ -1,11 +1,6 @@
-import os
-import sys
+from backend import create_app
 
-# Adiciona o diretório do projeto ao PYTHONPATH
-project_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(project_dir)
-
-from backend.app import app
+app = create_app()
 
 if __name__ == "__main__":
     app.run()

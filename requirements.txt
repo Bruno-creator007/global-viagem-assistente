@@ -8,4 +8,3 @@ Flask-SQLAlchemy==2.5.1
 SQLAlchemy==1.4.23
 Flask-Login==0.5.0
 Flask-CORS==3.0.10
-psycopg2-binary==2.9.9
