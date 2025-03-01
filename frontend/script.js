@@ -1,348 +1,224 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Elementos existentes
-    const userInput = document.getElementById('userInput');
-    const sendButton = document.getElementById('sendButton');
-    const chatHistory = document.getElementById('chatHistory');
-    const featureButtons = document.querySelectorAll('.feature-btn');
+// Elementos do DOM
+const chatForm = document.getElementById('chat-form');
+const chatInput = document.getElementById('chat-input');
+const chatMessages = document.getElementById('chat-messages');
+const loginModal = document.getElementById('login-modal');
+const registerModal = document.getElementById('register-modal');
+const userDashboardModal = document.getElementById('user-dashboard-modal');
+const loginForm = document.getElementById('login-form');
+const registerForm = document.getElementById('register-form');
+const loginBtn = document.getElementById('login-btn');
+const registerBtn = document.getElementById('register-btn');
+const logoutBtn = document.getElementById('logout-btn');
+const userDashboardBtn = document.getElementById('user-dashboard-btn');
+const upgradeBtn = document.getElementById('upgrade-btn');
+const closeButtons = document.querySelectorAll('.close-button');
 
-    // Novos elementos de autenticação
-    const loginBtn = document.getElementById('loginBtn');
-    const registerBtn = document.getElementById('registerBtn');
-    const userDashboardBtn = document.getElementById('userDashboardBtn');
-    const loginModal = document.getElementById('loginModal');
-    const registerModal = document.getElementById('registerModal');
-    const userDashboardModal = document.getElementById('userDashboardModal');
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const upgradeBtn = document.getElementById('upgradeBtn');
+// Estado do usuário
+let userAuthenticated = false;
+let userSubscriptionActive = false;
+let freeUsesRemaining = 3;
 
-    // API URL configuration
-    const API_URL = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000'
-        : window.location.origin;
+// Funções de utilidade
+function showMessage(message, isError = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isError ? 'error' : ''}`;
+    messageDiv.textContent = message;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
 
-    // Estado do usuário
-    let userState = {
-        authenticated: false,
-        subscriptionActive: false,
-        freeUsesRemaining: 3
-    };
+function openModal(modal) {
+    modal.style.display = 'block';
+}
 
-    // Funções de autenticação
-    async function checkAuth() {
-        try {
-            const response = await fetch(`${API_URL}/api/check_auth`, {
-                credentials: 'include'
-            });
-            const data = await response.json();
-            
-            updateUserState(data);
-        } catch (error) {
-            console.error('Erro ao verificar autenticação:', error);
-        }
+function closeModal(modal) {
+    modal.style.display = 'none';
+}
+
+// Funções de API
+async function checkAuth() {
+    try {
+        const response = await fetch('/api/check_auth');
+        const data = await response.json();
+        userAuthenticated = data.authenticated;
+        userSubscriptionActive = data.subscription_active;
+        freeUsesRemaining = data.free_uses_remaining;
+        updateUI();
+    } catch (error) {
+        console.error('Erro ao verificar autenticação:', error);
     }
+}
 
-    function updateUserState(data) {
-        userState = {
-            authenticated: data.authenticated,
-            subscriptionActive: data.subscription_active,
-            freeUsesRemaining: data.free_uses_remaining
-        };
-
-        // Atualiza UI
-        loginBtn.style.display = data.authenticated ? 'none' : 'block';
-        registerBtn.style.display = data.authenticated ? 'none' : 'block';
-        userDashboardBtn.style.display = data.authenticated ? 'block' : 'none';
-
-        if (data.authenticated) {
-            document.getElementById('subscriptionStatus').textContent = 
-                data.subscription_active ? 'Assinatura ativa' : 'Assinatura inativa';
-            document.getElementById('freeUsesRemaining').textContent = 
-                `Usos gratuitos restantes: ${data.free_uses_remaining}`;
-        }
-    }
-
-    async function handleLogin(e) {
-        e.preventDefault();
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-
-        try {
-            const response = await fetch(`${API_URL}/api/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ email, password })
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                updateUserState({
-                    authenticated: true,
-                    subscription_active: data.subscription_active,
-                    free_uses_remaining: 3
-                });
-                closeModal(loginModal);
-                loginForm.reset();
-            } else {
-                alert(data.error);
-            }
-        } catch (error) {
-            console.error('Erro ao fazer login:', error);
-            alert('Erro ao fazer login. Tente novamente.');
-        }
-    }
-
-    async function handleRegister(e) {
-        e.preventDefault();
-        const email = document.getElementById('registerEmail').value;
-        const password = document.getElementById('registerPassword').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
-
-        if (password !== confirmPassword) {
-            alert('As senhas não coincidem');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_URL}/api/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ email, password })
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                updateUserState({
-                    authenticated: true,
-                    subscription_active: false,
-                    free_uses_remaining: 3
-                });
-                closeModal(registerModal);
-                registerForm.reset();
-                window.location.href = 'https://kiwify.com.br/seu-produto'; // Substitua pelo link real
-            } else {
-                alert(data.error);
-            }
-        } catch (error) {
-            console.error('Erro ao registrar:', error);
-            alert('Erro ao criar conta. Tente novamente.');
-        }
-    }
-
-    async function handleLogout() {
-        try {
-            await fetch(`${API_URL}/api/logout`, {
-                method: 'POST',
-                credentials: 'include'
-            });
-            
-            updateUserState({
-                authenticated: false,
-                subscription_active: false,
-                free_uses_remaining: 3
-            });
-            
-            closeModal(userDashboardModal);
-        } catch (error) {
-            console.error('Erro ao fazer logout:', error);
-        }
-    }
-
-    // Funções de modal
-    function openModal(modal) {
-        modal.style.display = 'block';
-    }
-
-    function closeModal(modal) {
-        modal.style.display = 'none';
-    }
-
-    // Event listeners para autenticação
-    loginBtn.addEventListener('click', () => openModal(loginModal));
-    registerBtn.addEventListener('click', () => openModal(registerModal));
-    userDashboardBtn.addEventListener('click', () => openModal(userDashboardModal));
-    loginForm.addEventListener('submit', handleLogin);
-    registerForm.addEventListener('submit', handleRegister);
-    logoutBtn.addEventListener('click', handleLogout);
-    upgradeBtn.addEventListener('click', () => {
-        window.location.href = 'https://pay.kiwify.com.br/Ug7fYhB';
-    });
-
-    // Fecha modais quando clica no X
-    document.querySelectorAll('.close').forEach(closeBtn => {
-        closeBtn.addEventListener('click', () => {
-            closeModal(closeBtn.closest('.modal'));
+async function handleLogin(event) {
+    event.preventDefault();
+    const formData = new FormData(loginForm);
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: formData.get('email'),
+                password: formData.get('password'),
+            }),
         });
-    });
-
-    // Fecha modais quando clica fora
-    window.addEventListener('click', (e) => {
-        if (e.target.classList.contains('modal')) {
-            closeModal(e.target);
-        }
-    });
-
-    // API URL configuration
-    const API_URL = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000'
-        : window.location.origin;
-
-    function addMessage(content, isUser = false) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
-        
-        if (isUser) {
-            messageDiv.textContent = content;
+        const data = await response.json();
+        if (response.ok) {
+            userAuthenticated = true;
+            closeModal(loginModal);
+            checkAuth();
+            showMessage('Login realizado com sucesso!');
         } else {
-            // Convert line breaks to HTML and handle markdown-style formatting
-            const formattedContent = content
-                .replace(/\n\n/g, '</p><p>')
-                .replace(/\n/g, '<br>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/^- /gm, '• ');
-
-            messageDiv.innerHTML = `<p>${formattedContent}</p>`;
+            showMessage(data.error || 'Erro ao fazer login', true);
         }
+    } catch (error) {
+        showMessage('Erro ao conectar com o servidor', true);
+    }
+}
+
+async function handleRegister(event) {
+    event.preventDefault();
+    const formData = new FormData(registerForm);
+    try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: formData.get('email'),
+                password: formData.get('password'),
+                name: formData.get('name'),
+            }),
+        });
+        const data = await response.json();
+        if (response.ok) {
+            closeModal(registerModal);
+            showMessage('Cadastro realizado com sucesso! Faça login para continuar.');
+        } else {
+            showMessage(data.error || 'Erro ao fazer cadastro', true);
+        }
+    } catch (error) {
+        showMessage('Erro ao conectar com o servidor', true);
+    }
+}
+
+async function handleLogout() {
+    try {
+        await fetch('/api/logout', { method: 'POST' });
+        userAuthenticated = false;
+        userSubscriptionActive = false;
+        updateUI();
+        showMessage('Logout realizado com sucesso!');
+    } catch (error) {
+        showMessage('Erro ao fazer logout', true);
+    }
+}
+
+async function handleChatSubmit(event) {
+    event.preventDefault();
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    // Verificar se o usuário pode usar o serviço
+    if (!userAuthenticated && freeUsesRemaining <= 0) {
+        openModal(registerModal);
+        showMessage('Crie uma conta para continuar usando o assistente!', true);
+        return;
+    }
+
+    if (userAuthenticated && !userSubscriptionActive && freeUsesRemaining <= 0) {
+        openModal(userDashboardModal);
+        showMessage('Assine para continuar usando o assistente!', true);
+        return;
+    }
+
+    showMessage(`Você: ${message}`);
+    chatInput.value = '';
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message }),
+        });
         
-        chatHistory.appendChild(messageDiv);
-        chatHistory.scrollTop = chatHistory.scrollHeight;
+        if (!response.ok) {
+            throw new Error('Erro na resposta do servidor');
+        }
+
+        const data = await response.json();
+        showMessage(`Assistente: ${data.response}`);
+        
+        // Atualizar contagem de usos gratuitos
+        if (!userSubscriptionActive) {
+            freeUsesRemaining = data.free_uses_remaining;
+            updateUI();
+        }
+    } catch (error) {
+        showMessage('Erro ao processar sua mensagem. Tente novamente.', true);
+    }
+}
+
+function updateUI() {
+    // Atualizar visibilidade dos botões
+    if (userAuthenticated) {
+        loginBtn.style.display = 'none';
+        registerBtn.style.display = 'none';
+        logoutBtn.style.display = 'block';
+        userDashboardBtn.style.display = 'block';
+    } else {
+        loginBtn.style.display = 'block';
+        registerBtn.style.display = 'block';
+        logoutBtn.style.display = 'none';
+        userDashboardBtn.style.display = 'none';
     }
 
-    async function sendMessage(message, endpoint = 'chat') {
-        try {
-            const response = await fetch(`${API_URL}/api/${endpoint}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ message })
-            });
-
-            const data = await response.json();
-            
-            if (!data.success) {
-                throw new Error(data.error);
-            }
-
-            return data.response;
-        } catch (error) {
-            console.error('Error:', error);
-            return 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.';
+    // Atualizar informações do dashboard
+    const usageInfo = document.getElementById('usage-info');
+    if (usageInfo) {
+        if (userSubscriptionActive) {
+            usageInfo.textContent = 'Assinatura ativa';
+            upgradeBtn.style.display = 'none';
+        } else {
+            usageInfo.textContent = `Usos gratuitos restantes: ${freeUsesRemaining}`;
+            upgradeBtn.style.display = 'block';
         }
     }
+}
 
-    async function handleFeatureClick(feature) {
-        let prompt;
-        switch (feature) {
-            case 'roteiro':
-                prompt = 'Por favor, me diga para qual destino você gostaria de um roteiro e por quantos dias?';
-                break;
-            case 'trem':
-                prompt = 'Informe quais países da Europa você quer conhecer e quantos dias de viagem no total:';
-                break;
-            case 'precos':
-                prompt = 'Para qual destino você gostaria de saber os preços e quantos dias de viagem?';
-                break;
-            case 'checklist':
-                prompt = 'Para qual destino você precisa de um checklist de viagem?';
-                break;
-            case 'gastronomia':
-                prompt = 'Qual cidade você quer conhecer a gastronomia? (Informe também se prefere opções econômicas, intermediárias ou luxuosas)';
-                break;
-            case 'documentacao':
-                prompt = 'Para qual país você precisa de informações sobre documentação?';
-                break;
-            case 'guia':
-                prompt = 'Em qual cidade você está e quanto tempo tem disponível para passeios?';
-                break;
-            case 'festivais':
-                prompt = 'Para qual cidade você deseja saber sobre festivais e eventos?';
-                break;
-            case 'hospedagem':
-                prompt = 'Para qual cidade você gostaria de recomendações de áreas para hospedagem?';
-                break;
-            case 'historias':
-                prompt = 'Sobre qual cidade você gostaria de saber histórias e curiosidades?';
-                break;
-            case 'frases':
-                prompt = 'Para qual idioma você gostaria de receber frases úteis? (Ex: francês, espanhol)';
-                break;
-            case 'seguranca':
-                prompt = 'Para qual cidade você gostaria de dicas de segurança?';
-                break;
-            case 'hospitais':
-                prompt = 'Em qual cidade você precisa de informações sobre hospitais próximos?';
-                break;
-            case 'consulados':
-                prompt = 'Em qual cidade você gostaria de encontrar consulados?';
-                break;
-            default:
-                return;
-        }
+// Event Listeners
+chatForm.addEventListener('submit', handleChatSubmit);
 
-        addMessage(prompt, false);
-        userInput.focus();
-        userInput.setAttribute('data-feature', feature);
-    }
-
-    async function handleSend() {
-        const message = userInput.value.trim();
-        if (!message) return;
-
-        // Verifica acesso
-        if (!userState.authenticated && userState.freeUsesRemaining === 0) {
-            openModal(registerModal);
-            return;
-        }
-
-        const feature = userInput.getAttribute('data-feature') || 'chat';
-        addMessage(message, true);
-        userInput.value = '';
-
-        try {
-            const response = await fetch(`${API_URL}/api/feature/${feature}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ message })
-            });
-
-            const data = await response.json();
-            
-            if (!data.success) {
-                if (data.error === 'Faça login para continuar') {
-                    openModal(loginModal);
-                    return;
-                }
-                throw new Error(data.error);
-            }
-
-            addMessage(data.response);
-
-        } catch (error) {
-            console.error('Error:', error);
-            addMessage('Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.');
-        }
-    }
-
-    sendButton.addEventListener('click', handleSend);
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleSend();
-    });
-
-    featureButtons.forEach(button => {
-        if (!button.classList.contains('reserva')) {
-            button.addEventListener('click', () => {
-                const feature = button.getAttribute('data-feature');
-                handleFeatureClick(feature);
-            });
-        }
-    });
-
-    // Verifica autenticação ao carregar a página
-    checkAuth();
+// Event listeners para autenticação
+loginBtn.addEventListener('click', () => openModal(loginModal));
+registerBtn.addEventListener('click', () => openModal(registerModal));
+userDashboardBtn.addEventListener('click', () => openModal(userDashboardModal));
+loginForm.addEventListener('submit', handleLogin);
+registerForm.addEventListener('submit', handleRegister);
+logoutBtn.addEventListener('click', handleLogout);
+upgradeBtn.addEventListener('click', () => {
+    window.location.href = 'https://pay.kiwify.com.br/Ug7fYhB';
 });
+
+// Fechar modais quando clica no X
+closeButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        const modal = button.closest('.modal');
+        closeModal(modal);
+    });
+});
+
+// Fechar modal quando clica fora
+window.addEventListener('click', (event) => {
+    if (event.target.classList.contains('modal')) {
+        closeModal(event.target);
+    }
+});
+
+// Verificar autenticação ao carregar a página
+document.addEventListener('DOMContentLoaded', checkAuth);
