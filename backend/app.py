@@ -11,7 +11,7 @@ from os import environ
 
 app = Flask(__name__, 
     static_url_path='',
-    static_folder='../frontend')
+    static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend')))
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'sua_chave_secreta')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -108,13 +108,17 @@ def check_auth():
 
 @app.route('/webhook/kiwify', methods=['POST'])
 def kiwify_webhook():
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json'}), 400
+
     signature = request.args.get('signature')
     if not signature:
         return jsonify({'error': 'No signature provided'}), 401
 
     # Verificar a assinatura
+    webhook_secret = os.getenv('KIWIFY_WEBHOOK_SECRET', 'yfpccex6uk4')
     expected_signature = hmac.new(
-        environ.get('KIWIFY_WEBHOOK_SECRET', 'yfpccex6uk4').encode(),
+        webhook_secret.encode(),
         request.get_data(),
         hashlib.sha1
     ).hexdigest()
@@ -131,18 +135,25 @@ def kiwify_webhook():
         return jsonify({'error': 'No event type provided'}), 400
 
     if event_type == 'order.paid':
-        order = data.get('order', {})
-        customer_email = order.get('customer', {}).get('email')
-        
-        if not customer_email:
-            return jsonify({'error': 'No customer email provided'}), 400
+        try:
+            order = data.get('order', {})
+            customer = order.get('customer', {})
+            customer_email = customer.get('email')
+            
+            if not customer_email:
+                return jsonify({'error': 'No customer email provided'}), 400
 
-        user = User.query.filter_by(email=customer_email).first()
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
+            user = User.query.filter_by(email=customer_email).first()
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
 
-        user.subscription_active = True
-        db.session.commit()
+            user.subscription_active = True
+            db.session.commit()
+            
+            return jsonify({'success': True})
+        except Exception as e:
+            app.logger.error(f"Error processing webhook: {str(e)}")
+            return jsonify({'error': 'Internal server error'}), 500
 
     return jsonify({'success': True})
 
@@ -220,7 +231,7 @@ def index():
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/<path:path>')
-def serve_static(path):
+def static_files(path):
     return send_from_directory(app.static_folder, path)
 
 @app.route('/api/health')
@@ -651,6 +662,100 @@ def get_consulados():
         return jsonify({"success": True, "response": response})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/roteiro', methods=['POST'])
+def roteiro():
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json'}), 400
+
+    message = request.json.get('message')
+    if not message:
+        return jsonify({'error': 'Message is required'}), 400
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Você é um assistente de viagem especializado em criar roteiros detalhados."},
+                {"role": "user", "content": f"Crie um roteiro detalhado para {message}"}
+            ]
+        )
+        return jsonify({
+            'success': True,
+            'response': response.choices[0].message['content']
+        })
+    except Exception as e:
+        app.logger.error(f"Error calling OpenAI: {str(e)}")
+        return jsonify({'error': 'Failed to generate response'}), 500
+
+@app.route('/api/trem', methods=['POST'])
+def trem():
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json'}), 400
+
+    message = request.json.get('message')
+    if not message:
+        return jsonify({'error': 'Message is required'}), 400
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Você é um especialista em viagens de trem pela Europa."},
+                {"role": "user", "content": f"Forneça informações detalhadas sobre como viajar de trem entre {message}"}
+            ]
+        )
+        return jsonify({
+            'success': True,
+            'response': response.choices[0].message['content']
+        })
+    except Exception as e:
+        app.logger.error(f"Error calling OpenAI: {str(e)}")
+        return jsonify({'error': 'Failed to generate response'}), 500
+
+@app.route('/api/<feature>', methods=['POST'])
+def handle_feature(feature):
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json'}), 400
+
+    message = request.json.get('message')
+    if not message:
+        return jsonify({'error': 'Message is required'}), 400
+
+    # Mapeia cada feature para sua prompt específica
+    feature_prompts = {
+        'precos': f"Forneça informações detalhadas sobre custos de viagem em {message}, incluindo hospedagem, alimentação, transporte e atrações turísticas.",
+        'checklist': f"Crie uma lista completa do que levar para uma viagem a {message}.",
+        'gastronomia': f"Descreva detalhadamente a gastronomia de {message}, incluindo pratos típicos, restaurantes recomendados e experiências culinárias imperdíveis.",
+        'documentacao': f"Liste todos os documentos necessários para viajar para {message}, incluindo vistos, passaportes e outros requisitos.",
+        'guia': f"Crie um guia completo de {message}, incluindo principais atrações, dicas locais e informações práticas.",
+        'festivais': f"Liste os principais festivais e eventos culturais que acontecem em {message} ao longo do ano.",
+        'hospedagem': f"Recomende as melhores regiões e opções de hospedagem em {message} para diferentes orçamentos.",
+        'historias': f"Conte histórias interessantes e curiosidades sobre {message}.",
+        'frases': f"Liste frases úteis em {message} para viajantes, incluindo pronúncia e tradução.",
+        'seguranca': f"Forneça dicas de segurança importantes para viajantes em {message}.",
+        'hospitais': f"Liste os principais hospitais e informações médicas importantes em {message}.",
+        'consulados': f"Forneça informações sobre consulados e embaixadas brasileiras em {message}."
+    }
+
+    if feature not in feature_prompts:
+        return jsonify({'error': 'Invalid feature'}), 400
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Você é um assistente de viagem especializado."},
+                {"role": "user", "content": feature_prompts[feature]}
+            ]
+        )
+        return jsonify({
+            'success': True,
+            'response': response.choices[0].message['content']
+        })
+    except Exception as e:
+        app.logger.error(f"Error calling OpenAI: {str(e)}")
+        return jsonify({'error': 'Failed to generate response'}), 500
 
 def record_usage(user_id, endpoint):
     if user_id:

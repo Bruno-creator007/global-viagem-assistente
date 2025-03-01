@@ -512,40 +512,22 @@ const API_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:5000'
     : window.location.origin;
 
-// Estado do usuário
-let currentUser = null;
-
 // Elementos DOM
-const loginButton = document.getElementById('loginButton');
-const registerButton = document.getElementById('registerButton');
-const logoutButton = document.getElementById('logoutButton');
-const userInfo = document.getElementById('userInfo');
-const userEmail = document.getElementById('userEmail');
-const loginModal = document.getElementById('loginModal');
-const registerModal = document.getElementById('registerModal');
-const loginForm = document.getElementById('loginForm');
-const registerForm = document.getElementById('registerForm');
 const userInput = document.getElementById('userInput');
 const sendButton = document.getElementById('sendButton');
 const chatHistory = document.getElementById('chatHistory');
 
-// Funções de autenticação
-async function checkUsageLimit() {
-    try {
-        const response = await fetch(`${API_URL}/api/check_usage`, {
-            credentials: 'include'
-        });
-        const data = await response.json();
-        
-        if (data.requires_login) {
-            showRegisterModal(); // Mostrar registro em vez de login após os 3 usos
-            return false;
-        }
-        return true;
-    } catch (error) {
-        console.error('Erro ao verificar limite de uso:', error);
-        return true;
-    }
+// Funções de UI
+function scrollToInput() {
+    userInput.scrollIntoView({ behavior: 'smooth' });
+}
+
+function addMessage(content, isUser = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
+    messageDiv.textContent = content;
+    chatHistory.appendChild(messageDiv);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
 }
 
 async function handleFeatureClick(feature) {
@@ -599,45 +581,40 @@ async function handleFeatureClick(feature) {
     userInput.placeholder = prompt;
     userInput.value = '';
     userInput.focus();
+    scrollToInput();
 }
 
 async function handleSend() {
-    if (!userInput.value.trim()) return;
+    const message = userInput.value.trim();
+    if (!message) return;
 
     const feature = userInput.getAttribute('data-feature');
-    const message = userInput.value.trim();
-
-    if (!await checkUsageLimit()) {
+    if (!feature) {
+        addMessage('Por favor, selecione uma função antes de enviar sua mensagem.');
         return;
     }
 
-    addMessage(message, true);
-    userInput.value = '';
-
     try {
-        let response;
-        switch (feature) {
-            case 'roteiro':
-                const [destino, ...diasArray] = message.split(' ');
-                const dias = diasArray.join(' ').replace('dias', '').trim();
-                response = await fetch(`${API_URL}/api/roteiro`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ destino, dias: dias || '5' })
-                });
-                break;
-            // ... outros casos ...
-        }
+        addMessage(message, true);
+        userInput.value = '';
+
+        const response = await fetch(`${API_URL}/api/${feature}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ message })
+        });
 
         const data = await response.json();
-        
-        if (data.error === 'login_required') {
-            showRegisterModal();
+
+        if (response.status === 401) {
+            showLoginModal();
             return;
         }
-        
-        if (!data.success) {
+
+        if (!response.ok) {
             throw new Error(data.error || 'Erro ao processar sua mensagem');
         }
 
@@ -648,72 +625,14 @@ async function handleSend() {
     }
 }
 
-// Funções UI
-function showLoginModal() {
-    loginModal.style.display = 'block';
-}
-
-function hideLoginModal() {
-    loginModal.style.display = 'none';
-    loginForm.reset();
-}
-
-function showRegisterModal() {
-    registerModal.style.display = 'block';
-}
-
-function hideRegisterModal() {
-    registerModal.style.display = 'none';
-    registerForm.reset();
-}
-
-function addMessage(content, isUser = false) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
-    messageDiv.textContent = content;
-    chatHistory.appendChild(messageDiv);
-    chatHistory.scrollTop = chatHistory.scrollHeight;
-}
-
 // Event Listeners
-document.querySelectorAll('.close').forEach(closeButton => {
-    closeButton.addEventListener('click', () => {
-        hideLoginModal();
-        hideRegisterModal();
-    });
-});
-
-loginButton.addEventListener('click', showLoginModal);
-registerButton.addEventListener('click', showRegisterModal);
-logoutButton.addEventListener('click', logout);
-
-loginForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    login(email, password);
-});
-
-registerForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('registerEmail').value;
-    const password = document.getElementById('registerPassword').value;
-    register(email, password);
-});
-
-sendButton.addEventListener('click', handleSend);
-userInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleSend();
-});
-
 document.querySelectorAll('.feature-button').forEach(button => {
     button.addEventListener('click', () => {
         handleFeatureClick(button.getAttribute('data-feature'));
     });
 });
 
-// Fechar modais ao clicar fora
-window.addEventListener('click', (e) => {
-    if (e.target === loginModal) hideLoginModal();
-    if (e.target === registerModal) hideRegisterModal();
+sendButton.addEventListener('click', handleSend);
+userInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleSend();
 });
